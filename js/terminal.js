@@ -76,6 +76,8 @@ function bootTerminal(scenarioId){
   hintsUsed = 0;
   document.getElementById('screen').closest('.terminal').classList.remove('victory');
   document.getElementById('mission-complete')?.classList.remove('show');
+  document.getElementById('mission-complete')?.classList.remove('epic');
+  const ch = document.getElementById('confetti-host'); if(ch) ch.innerHTML = '';
   document.getElementById('game-tag').textContent = sc.tag;
   document.getElementById('cmd-ref-list').innerHTML = sc.cmdRefHtml;
   document.getElementById('hint-text').style.display = 'none';
@@ -145,13 +147,25 @@ function handle(raw){
 }
 
 function finishMission(){
+  if(typeof markScenarioComplete === 'function') markScenarioComplete(state.scenarioId);
   playVictorySound();
+  const sc = currentScenario();
   const elapsed = Math.max(1, Math.round((Date.now() - missionStart) / 1000));
-  setTimeout(()=> showMissionComplete(elapsed, cmdCount, hintsUsed), 900);
+  if(typeof recordBestTime === 'function') recordBestTime(state.scenarioId, elapsed);
+  if(sc.epic){
+    playEpicFanfare();
+    setTimeout(()=> showMissionComplete(elapsed, cmdCount, hintsUsed), 1300);
+  } else {
+    setTimeout(()=> showMissionComplete(elapsed, cmdCount, hintsUsed), 900);
+  }
 }
 
 function showMissionComplete(elapsed, cmds, hints){
   const sc = currentScenario();
+  const overlay = document.getElementById('mission-complete');
+  const card = overlay.querySelector('.mc-card');
+  overlay.classList.toggle('epic', !!sc.epic);
+  card.querySelector('.mc-badge').textContent = sc.epic ? '👑' : '🏆';
   document.getElementById('mc-title').textContent = sc.completeTitle;
   document.getElementById('mc-sub-text').textContent = sc.completeSub;
   document.getElementById('mc-chain').innerHTML = sc.chainSteps.map((s,i) =>
@@ -160,10 +174,31 @@ function showMissionComplete(elapsed, cmds, hints){
   document.getElementById('mc-time').textContent = elapsed + 's';
   document.getElementById('mc-cmds').textContent = cmds;
   document.getElementById('mc-hints').textContent = hints;
-  document.getElementById('mission-complete').classList.add('show');
+
+  const confettiHost = document.getElementById('confetti-host');
+  confettiHost.innerHTML = '';
+  if(sc.epic){
+    const pieces = ['🎫','👑','✨','🔑'];
+    for(let i=0;i<36;i++){
+      const span = document.createElement('span');
+      span.className = 'confetti-piece';
+      span.textContent = pieces[i % pieces.length];
+      span.style.left = (Math.random()*100) + '%';
+      span.style.animationDelay = (Math.random()*0.8) + 's';
+      span.style.animationDuration = (2.4 + Math.random()*1.6) + 's';
+      span.style.fontSize = (14 + Math.random()*14) + 'px';
+      confettiHost.appendChild(span);
+    }
+    setTimeout(()=> { confettiHost.innerHTML = ''; }, 4200);
+  }
+
+  overlay.classList.add('show');
 }
 function closeMissionComplete(){
-  document.getElementById('mission-complete').classList.remove('show');
+  const overlay = document.getElementById('mission-complete');
+  overlay.classList.remove('show');
+  overlay.classList.remove('epic');
+  document.getElementById('confetti-host').innerHTML = '';
 }
 
 function copyFlag(btn){
@@ -172,6 +207,39 @@ function copyFlag(btn){
     btn.textContent = '✓ Copié';
     setTimeout(()=> btn.textContent = '📋 Copier', 1500);
   }).catch(()=>{});
+}
+
+function playEpicFanfare(){
+  try{
+    const ctx2 = new (window.AudioContext || window.webkitAudioContext)();
+    // un accord grave qui monte, puis l'arpège triomphal
+    const bass = [130.81, 164.81, 196.00]; // C3 E3 G3
+    bass.forEach((freq,i)=>{
+      const osc = ctx2.createOscillator();
+      const gain = ctx2.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.value = freq;
+      const start = ctx2.currentTime;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.05, start + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.9);
+      osc.connect(gain).connect(ctx2.destination);
+      osc.start(start); osc.stop(start + 0.9);
+    });
+    const arp = [523.25, 659.25, 783.99, 1046.5, 1318.5]; // C5 E5 G5 C6 E6
+    arp.forEach((freq,i)=>{
+      const osc = ctx2.createOscillator();
+      const gain = ctx2.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      const start = ctx2.currentTime + 0.15 + i * 0.11;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.14, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.35);
+      osc.connect(gain).connect(ctx2.destination);
+      osc.start(start); osc.stop(start + 0.35);
+    });
+  }catch(e){ /* audio non disponible, tant pis */ }
 }
 
 function playVictorySound(){

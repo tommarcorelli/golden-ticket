@@ -25,6 +25,7 @@
     <h1>Vole la <span class="grad">couronne</span><br>du domaine.</h1>
     <p class="lead">Un terminal Windows/Active Directory simulé. De vraies techniques d'attaque — Kerberoasting, Pass-the-Hash, abus d'ACL — jusqu'à devenir Domain Admin. Chaque flag t'apprend une vraie faille.</p>
     <button class="cta" onclick="goToLesson('kerberoast')">▶ Commencer le scénario 01</button>
+    <div class="progress-track" id="progress-track"></div>
 
     <div class="hero-panel">
 <span class="l1">C:\&gt; whoami /priv</span>
@@ -37,20 +38,37 @@ Ticket obtenu. Prêt à cracker.</div>
   </div>
 
   <div class="modes">
-    <div class="mode-card active-mode">
+    <div class="mode-card active-mode" id="mode-card-kerberoast">
+      <span class="done-badge" id="badge-kerberoast" style="display:none;">✓ Terminé</span>
       <h4>🎫 Scénario 01 — Kerberoasting</h4>
       <p>Repère un compte de service, extrais son ticket, crack le mot de passe, abuse d'un groupe privilégié.</p>
       <button class="mode-play" onclick="goToLesson('kerberoast')">▶ Rejouer</button>
     </div>
-    <div class="mode-card active-mode">
+    <div class="mode-card active-mode" id="mode-card-pth">
+      <span class="done-badge" id="badge-pth" style="display:none;">✓ Terminé</span>
       <h4>🗝️ Scénario 02 — Pass-the-Hash</h4>
       <p>Réutilise un hash volé pour t'authentifier sur un autre serveur, sans jamais connaître le mot de passe en clair.</p>
       <button class="mode-play" onclick="goToLesson('pth')">▶ Lancer</button>
     </div>
-    <div class="mode-card active-mode">
+    <div class="mode-card active-mode" id="mode-card-acl">
+      <span class="done-badge" id="badge-acl" style="display:none;">✓ Terminé</span>
       <h4>👑 Scénario 03 — Abus d'ACL</h4>
       <p>Exploite des permissions mal configurées pour prendre le contrôle d'un autre compte et grimper vers le trône.</p>
       <button class="mode-play" onclick="goToLesson('acl')">▶ Lancer</button>
+    </div>
+  </div>
+
+  <div class="epic-banner-wrap">
+    <div class="epic-banner" onclick="goToLesson('goldenticket')">
+      <div class="epic-glow"></div>
+      <div class="epic-crown">👑</div>
+      <div class="epic-content">
+        <div class="epic-eyebrow">🔥 Chapitre final</div>
+        <span class="done-badge epic-badge" id="badge-goldenticket" style="display:none;">✓ Terminé</span>
+        <h3>Forge ton propre <span class="grad">Golden Ticket</span></h3>
+        <p>Enchaîne Kerberoasting → Abus d'ACL → extraction de la clé krbtgt jusqu'à l'attaque qui donne son nom à ce jeu.</p>
+      </div>
+      <div class="epic-cta">▶ Jouer</div>
     </div>
   </div>
 </section>
@@ -117,6 +135,22 @@ Ticket obtenu. Prêt à cracker.</div>
   </div>
 </section>
 
+<!-- ============ EN SAVOIR PLUS (deep dive défense) ============ -->
+<section id="view-explain" class="view">
+  <div class="lesson-shell" style="max-width:640px;">
+    <div class="game-header">
+      <button class="back-link" onclick="backHome()">← Retour</button>
+      <div class="scenario-tag" id="explain-tag">🛡️ ANALYSE</div>
+    </div>
+    <div class="slide active" style="text-align:left;">
+      <h2 id="explain-title" style="text-align:center;">Pourquoi ça marche</h2>
+      <p id="explain-why"></p>
+      <h3 class="defense-heading">🛡️ Comment s'en défendre</h3>
+      <ul class="defense-list" id="explain-defenses"></ul>
+    </div>
+  </div>
+</section>
+
 <!-- ============ JEU ============ -->
 <section id="view-game" class="view">
   <div class="game-shell">
@@ -155,6 +189,7 @@ Ticket obtenu. Prêt à cracker.</div>
     </div>
 
     <div id="mission-complete" class="mc-overlay">
+      <div id="confetti-host" class="confetti-host"></div>
       <div class="mc-card">
         <div class="mc-badge">🏆</div>
         <h2 id="mc-title">Domaine compromis</h2>
@@ -170,6 +205,7 @@ Ticket obtenu. Prêt à cracker.</div>
 
         <div class="mc-actions">
           <button class="back-link" onclick="closeMissionComplete(); backHome();">← Accueil</button>
+          <button class="back-link" onclick="closeMissionComplete(); showExplain();">🛡️ En savoir plus</button>
           <button class="cta cta-sm" onclick="closeMissionComplete(); bootTerminal();">↺ Recommencer</button>
         </div>
       </div>

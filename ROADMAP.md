@@ -1,6 +1,6 @@
 # 🎫 Golden Ticket — Feuille de route
 
-Statut au 10 juillet 2026 : **3 scénarios jouables** (Kerberoasting, Pass-the-Hash, Abus d'ACL), moteur générique data-driven partagé, leçon + glossaire + écran de fin dédié.
+Statut au 11 juillet 2026 : **3 scénarios + 1 chapitre final épique** (Kerberoasting, Pass-the-Hash, Abus d'ACL, puis Chapitre Final qui enchaîne tout jusqu'au vrai Golden Ticket), moteur générique data-driven, leçon + glossaire + page d'analyse défense + progression de session + confettis/fanfare sur le final.
 
 ---
 
@@ -32,7 +32,7 @@ Statut au 10 juillet 2026 : **3 scénarios jouables** (Kerberoasting, Pass-the-H
 - [x] **Scénario 02 — Pass-the-Hash**
 - [x] **Scénario 03 — Abus d'ACL**
 - [ ] Mode "libre" : un domaine plus grand avec plusieurs chemins d'attaque valides au lieu d'une seule chaîne imposée
-- [ ] Scénario "Golden Ticket" littéral (forger un ticket Kerberos après avoir compromis le compte krbtgt) — le scénario final qui donne tout son sens au nom du jeu
+- [x] Scénario "Golden Ticket" littéral — **Chapitre Final**, enchaîne les 3 techniques jusqu'au forgeage d'un ticket krbtgt
 
 ## 🔴 Chantiers d'architecture (fondations, avant d'empiler trop de contenu)
 

@@ -348,6 +348,18 @@ body::before{
 .gloss-card p{font-size:12.5px;color:var(--text-md);line-height:1.6;}
 .gloss-card p b{color:var(--text);}
 
+/* ---------- deep dive / explain view ---------- */
+.defense-heading{
+  font-family:var(--font-display);font-weight:700;font-size:15px;
+  color:var(--gold-li);margin:22px 0 12px;
+}
+.defense-list{list-style:none;display:flex;flex-direction:column;gap:9px;}
+.defense-list li{
+  font-size:13px;color:var(--text-md);line-height:1.55;
+  padding:10px 14px;border-radius:8px;
+  background:var(--glass);border:1px solid var(--glass-border);
+}
+
 /* ---------- mission complete overlay ---------- */
 .mc-overlay{
   position:fixed;inset:0;z-index:100;
@@ -387,3 +399,141 @@ body::before{
 .mc-stat span{font-family:var(--font-display);font-weight:700;font-size:18px;color:var(--gold-li);}
 .mc-stat label{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;}
 .mc-actions{display:flex;justify-content:center;gap:12px;align-items:center;}
+
+/* ---------- bannière chapitre final ---------- */
+.epic-banner-wrap{max-width:920px;margin:0 auto;padding:0 24px 100px;}
+.epic-banner{
+  position:relative;overflow:hidden;cursor:pointer;
+  border-radius:var(--radius-lg);
+  padding:32px 34px;
+  display:flex;align-items:center;gap:22px;
+  background:
+    linear-gradient(120deg, rgba(242,183,5,0.14), rgba(220,38,38,0.10) 60%, rgba(91,42,134,0.12)),
+    var(--glass);
+  border:1px solid rgba(242,183,5,0.3);
+  transition:transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.epic-banner:hover{
+  transform:translateY(-3px) scale(1.005);
+  border-color:rgba(242,183,5,0.55);
+  box-shadow:0 20px 60px rgba(242,183,5,0.15);
+}
+.epic-glow{
+  position:absolute;inset:-40%;
+  background:radial-gradient(circle at 15% 50%, rgba(242,183,5,0.25), transparent 55%);
+  animation:epicGlowMove 6s ease-in-out infinite;
+  pointer-events:none;
+}
+@keyframes epicGlowMove{
+  0%,100%{ transform:translateX(0) translateY(0); }
+  50%{ transform:translateX(6%) translateY(-4%); }
+}
+.epic-crown{
+  font-size:44px;flex-shrink:0;position:relative;z-index:1;
+  animation:crownFloat 3s ease-in-out infinite;
+  filter:drop-shadow(0 0 14px rgba(242,183,5,0.5));
+}
+@keyframes crownFloat{
+  0%,100%{ transform:translateY(0) rotate(-3deg); }
+  50%{ transform:translateY(-6px) rotate(3deg); }
+}
+.epic-content{flex:1;position:relative;z-index:1;}
+.epic-eyebrow{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:2px;
+  color:var(--gold-li);text-transform:uppercase;margin-bottom:6px;
+}
+.epic-content h3{
+  font-family:var(--font-display);font-weight:800;font-size:21px;color:#fff;
+  margin-bottom:6px;letter-spacing:-0.3px;
+}
+.epic-content p{font-size:12.5px;color:var(--text-md);line-height:1.5;max-width:520px;}
+.epic-cta{
+  position:relative;z-index:1;flex-shrink:0;
+  font-family:var(--font-body);font-weight:700;font-size:13px;
+  background:var(--grad-main);color:#1a0e00;
+  padding:12px 22px;border-radius:8px;
+  box-shadow:0 6px 24px rgba(242,183,5,0.25);
+}
+@media (max-width:640px){
+  .epic-banner{flex-direction:column;text-align:center;padding:26px 20px;}
+  .epic-content p{max-width:none;}
+}
+
+/* ---------- overlay épique + confettis ---------- */
+.confetti-host{
+  position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1;
+}
+.confetti-piece{
+  position:absolute;top:-30px;will-change:transform,opacity;
+  animation-name:confettiFall;
+  animation-timing-function:ease-in;
+  animation-fill-mode:forwards;
+}
+@keyframes confettiFall{
+  0%{ transform:translateY(0) rotate(0deg); opacity:1; }
+  100%{ transform:translateY(110vh) rotate(540deg); opacity:0.9; }
+}
+.mc-overlay.epic{
+  background:radial-gradient(ellipse 80% 60% at 50% 20%, rgba(242,183,5,0.18), rgba(4,3,7,0.85) 65%);
+}
+.mc-overlay.epic .mc-card{
+  border-color:rgba(242,183,5,0.55);
+  box-shadow:0 30px 100px rgba(0,0,0,0.6), 0 0 100px rgba(242,183,5,0.25);
+  animation:epicCardIn .5s cubic-bezier(.2,1.4,.4,1);
+  position:relative;z-index:2;
+}
+@keyframes epicCardIn{
+  0%{ transform:scale(0.85) rotate(-2deg); opacity:0; }
+  60%{ transform:scale(1.03) rotate(1deg); opacity:1; }
+  100%{ transform:scale(1) rotate(0deg); opacity:1; }
+}
+.mc-overlay.epic .mc-badge{
+  font-size:56px;
+  animation:crownSpin 1.1s cubic-bezier(.2,1.6,.4,1);
+  filter:drop-shadow(0 0 18px rgba(242,183,5,0.7));
+}
+@keyframes crownSpin{
+  0%{ transform:scale(0) rotate(-180deg); }
+  70%{ transform:scale(1.25) rotate(15deg); }
+  100%{ transform:scale(1) rotate(0deg); }
+}
+.mc-overlay.epic .mc-card h2{
+  background:var(--grad-main);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  font-size:24px;
+}
+.epic-badge{position:static;display:inline-block;margin-bottom:8px;}
+
+/* ---------- progression session ---------- */
+.done-badge{
+  position:absolute;top:16px;right:16px;
+  font-family:var(--font-mono);font-size:9.5px;font-weight:700;
+  color:#0f1c14;background:var(--green);
+  padding:3px 9px;border-radius:10px;letter-spacing:0.5px;
+}
+.progress-track{
+  margin-top:14px;font-family:var(--font-mono);font-size:11px;
+  color:var(--text-dim);
+}
+.progress-track .pt-fill{color:var(--gold-li);}
+
+/* ---------- responsive mobile ---------- */
+@media (max-width:640px){
+  .topbar{padding:14px 18px;flex-wrap:wrap;gap:10px;}
+  .hero{padding:56px 16px 40px;}
+  .hero h1{font-size:34px;letter-spacing:-1px;}
+  .hero p.lead{font-size:14px;}
+  .eyebrow{font-size:10.5px;padding:5px 12px;}
+  .hero-panel{padding:16px;font-size:11px;margin-top:40px;}
+  .game-shell{padding:18px 14px 40px;}
+  .game-header{flex-wrap:wrap;gap:8px;}
+  .scenario-tag{order:3;width:100%;text-align:center;}
+  #screen{height:360px;font-size:12px;}
+  .mc-card{padding:26px 18px;}
+  .mc-chain{gap:2px;}
+  .mc-step{width:48px;font-size:15px;}
+  .mc-stats{gap:16px;}
+  .lesson-shell{padding:20px 14px 40px;}
+  .slide{padding:26px 20px;min-height:auto;}
+  .slide h2{font-size:18px;}
+  .cta{padding:13px 24px;font-size:13.5px;}
+}

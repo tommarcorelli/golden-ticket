@@ -6,13 +6,48 @@ function showView(id){
     'view-home': 'Golden Ticket — Domain Breach Lab',
     'view-lesson': '📘 Leçon — Golden Ticket',
     'view-game': '🎫 Mission en cours — Golden Ticket',
-    'view-glossary': '📖 Glossaire — Golden Ticket'
+    'view-glossary': '📖 Glossaire — Golden Ticket',
+    'view-explain': '🛡️ Analyse — Golden Ticket'
   };
   document.title = titles[id] || 'Golden Ticket';
 }
 
 let lessonScenarioId = 'kerberoast';
 let currentSlide = 0;
+const completedScenarios = {};
+
+function markScenarioComplete(scenarioId){
+  completedScenarios[scenarioId] = true;
+  updateHomeBadges();
+}
+
+const bestTimes = {};
+function recordBestTime(scenarioId, elapsed){
+  if(!bestTimes[scenarioId] || elapsed < bestTimes[scenarioId]){
+    bestTimes[scenarioId] = elapsed;
+  }
+  updateHomeBadges();
+}
+
+function updateHomeBadges(){
+  const ids = Object.keys(SCENARIOS);
+  ids.forEach(id => {
+    const badge = document.getElementById('badge-' + id);
+    if(badge){
+      if(completedScenarios[id]){
+        badge.style.display = 'inline-block';
+        badge.textContent = bestTimes[id] ? `✓ Terminé · ${bestTimes[id]}s` : '✓ Terminé';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+  });
+  const done = ids.filter(id => completedScenarios[id]).length;
+  const track = document.getElementById('progress-track');
+  if(track){
+    track.innerHTML = `<span class="pt-fill">${done}</span> / ${ids.length} scénario${ids.length>1?'s':''} complété${done>1?'s':''} cette session`;
+  }
+}
 
 function goToLesson(scenarioId){
   lessonScenarioId = scenarioId;
@@ -67,8 +102,19 @@ function startScenario(scenarioId){
 
 function backHome(){
   showView('view-home');
+  updateHomeBadges();
+}
+
+function showExplain(){
+  const sc = SCENARIOS[state.scenarioId];
+  document.getElementById('explain-tag').textContent = `🛡️ ANALYSE · ${sc.tag.split('·')[1] ? sc.tag.split('·')[1].trim() : sc.tag}`;
+  document.getElementById('explain-title').textContent = 'Pourquoi ça marche';
+  document.getElementById('explain-why').textContent = sc.deepDive.why;
+  document.getElementById('explain-defenses').innerHTML = sc.deepDive.defenses.map(d => `<li>${d}</li>`).join('');
+  showView('view-explain');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   initTerminalInput();
+  updateHomeBadges();
 });
