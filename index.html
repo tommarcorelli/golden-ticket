@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Golden Ticket — Domain Breach Lab</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎫</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="bg-grid"></div>
+
+<div class="topbar">
+  <div class="brand"><span class="ticket">🎫</span> GOLDEN <span class="grad">TICKET</span></div>
+  <div style="display:flex;align-items:center;gap:14px;">
+    <button class="back-link" onclick="showView('view-glossary')">📖 Glossaire</button>
+    <div class="domain-pill">CORP.LOCAL</div>
+  </div>
+</div>
+
+<!-- ============ ACCUEIL ============ -->
+<section id="view-home" class="view active">
+  <div class="hero">
+    <div class="eyebrow">🏆 Domain Breach Lab</div>
+    <h1>Vole la <span class="grad">couronne</span><br>du domaine.</h1>
+    <p class="lead">Un terminal Windows/Active Directory simulé. De vraies techniques d'attaque — Kerberoasting, Pass-the-Hash, abus d'ACL — jusqu'à devenir Domain Admin. Chaque flag t'apprend une vraie faille.</p>
+    <button class="cta" onclick="goToLesson('kerberoast')">▶ Commencer le scénario 01</button>
+
+    <div class="hero-panel">
+<span class="l1">C:\&gt; whoami /priv</span>
+Utilisateur : CORP\j.dupont
+Rôle : Utilisateur standard
+<span class="l2">C:\&gt; get-domainuser -spn</span>
+svc_backup — MSSQLSvc/sql01.corp.local:1433
+<span class="l3">C:\&gt; invoke-kerberoast -identity svc_backup</span>
+Ticket obtenu. Prêt à cracker.</div>
+  </div>
+
+  <div class="modes">
+    <div class="mode-card active-mode">
+      <h4>🎫 Scénario 01 — Kerberoasting</h4>
+      <p>Repère un compte de service, extrais son ticket, crack le mot de passe, abuse d'un groupe privilégié.</p>
+      <button class="mode-play" onclick="goToLesson('kerberoast')">▶ Rejouer</button>
+    </div>
+    <div class="mode-card active-mode">
+      <h4>🗝️ Scénario 02 — Pass-the-Hash</h4>
+      <p>Réutilise un hash volé pour t'authentifier sur un autre serveur, sans jamais connaître le mot de passe en clair.</p>
+      <button class="mode-play" onclick="goToLesson('pth')">▶ Lancer</button>
+    </div>
+    <div class="mode-card active-mode">
+      <h4>👑 Scénario 03 — Abus d'ACL</h4>
+      <p>Exploite des permissions mal configurées pour prendre le contrôle d'un autre compte et grimper vers le trône.</p>
+      <button class="mode-play" onclick="goToLesson('acl')">▶ Lancer</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LEÇON ============ -->
+<section id="view-lesson" class="view">
+  <div class="lesson-shell">
+    <div class="game-header">
+      <button class="back-link" onclick="backHome()">← Retour</button>
+      <div class="scenario-tag" id="lesson-tag">📘 LEÇON · AVANT LA MISSION</div>
+    </div>
+
+    <div id="lesson-slides"></div>
+
+    <div class="slide-nav">
+      <button class="back-link" id="slide-back" onclick="prevSlide()">← Précédent</button>
+      <div class="dot-progress" id="lesson-dots"></div>
+      <button class="cta cta-sm" id="slide-next" onclick="nextSlide()">Suivant →</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ GLOSSAIRE ============ -->
+<section id="view-glossary" class="view">
+  <div class="lesson-shell" style="max-width:760px;">
+    <div class="game-header">
+      <button class="back-link" onclick="backHome()">← Retour</button>
+      <div class="scenario-tag">📖 GLOSSAIRE AD</div>
+    </div>
+    <div class="glossary-grid">
+      <div class="gloss-card">
+        <h4>Domaine / Domain Controller</h4>
+        <p>Le domaine est l'espace centralisé de gestion d'une entreprise (comptes, machines, droits). Le <b>Domain Controller</b> (DC) est le serveur qui fait autorité dessus.</p>
+      </div>
+      <div class="gloss-card">
+        <h4>Kerberos</h4>
+        <p>Protocole d'authentification d'AD : au lieu d'envoyer un mot de passe à chaque service, l'utilisateur obtient des <b>tickets</b> temporaires qui prouvent son identité.</p>
+      </div>
+      <div class="gloss-card">
+        <h4>SPN (Service Principal Name)</h4>
+        <p>Identifiant qui relie un service (ex: une base SQL) à un compte du domaine. Tout compte avec un SPN peut se voir demander un ticket par n'importe quel utilisateur authentifié.</p>
+      </div>
+      <div class="gloss-card">
+        <h4>Kerberoasting</h4>
+        <p>Attaque consistant à demander le ticket chiffré d'un compte de service, puis à le casser hors-ligne pour retrouver le mot de passe en clair — sans jamais alerter le système.</p>
+      </div>
+      <div class="gloss-card">
+        <h4>Domain Admin</h4>
+        <p>Groupe aux pleins pouvoirs sur le domaine entier. C'est la cible ultime de la plupart des attaques AD — la "couronne".</p>
+      </div>
+      <div class="gloss-card">
+        <h4>ACL (Access Control List)</h4>
+        <p>Liste qui définit qui a le droit de faire quoi sur un objet (lire, modifier, supprimer). Une ACL mal configurée peut donner à un compte anodin le droit de modifier un compte puissant.</p>
+      </div>
+      <div class="gloss-card">
+        <h4>Pass-the-Hash</h4>
+        <p>Technique consistant à réutiliser le hash d'un mot de passe (au lieu du mot de passe en clair) pour s'authentifier — le hash suffit, pas besoin de le casser.</p>
+      </div>
+      <div class="gloss-card">
+        <h4>krbtgt</h4>
+        <p>Compte spécial dont la clé chiffre tous les tickets Kerberos du domaine. Le compromettre permet de forger n'importe quel ticket à volonté : le vrai <b>Golden Ticket</b>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ JEU ============ -->
+<section id="view-game" class="view">
+  <div class="game-shell">
+    <div class="game-header">
+      <button class="back-link" onclick="backHome()">← Retour</button>
+      <div class="scenario-tag" id="game-tag">🎫 SCÉNARIO 01 · KERBEROASTING</div>
+      <button class="back-link" onclick="bootTerminal()">↺ Recommencer</button>
+    </div>
+
+    <div class="layout">
+      <div class="terminal">
+        <div class="term-bar">
+          <div class="tdot r"></div><div class="tdot y"></div><div class="tdot g"></div>
+          <div class="term-title">cmd.exe — CORP\j.dupont</div>
+        </div>
+        <div id="screen"></div>
+        <div class="input-row">
+          <span id="prompt-label">CORP\j.dupont&gt;</span>
+          <input id="cmd-input" autocomplete="off" spellcheck="false" />
+        </div>
+      </div>
+
+      <div class="side">
+        <div class="card">
+          <h3>Objectif</h3>
+          <div id="objectives"></div>
+          <button class="hint-btn" onclick="showHint()">💡 Indice</button>
+          <div id="hint-text"></div>
+        </div>
+        <div class="card">
+          <h3>Commandes utiles</h3>
+          <div class="cmd-ref" id="cmd-ref-list"></div>
+          <div class="lesson-tip" style="margin-top:12px;">💡 <b>man &lt;commande&gt;</b> pour une explication détaillée</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="mission-complete" class="mc-overlay">
+      <div class="mc-card">
+        <div class="mc-badge">🏆</div>
+        <h2 id="mc-title">Domaine compromis</h2>
+        <p class="mc-sub" id="mc-sub-text">Compte de service exploité, groupe privilégié abusé.</p>
+
+        <div class="mc-chain" id="mc-chain"></div>
+
+        <div class="mc-stats">
+          <div class="mc-stat"><span id="mc-time">0s</span><label>Temps</label></div>
+          <div class="mc-stat"><span id="mc-cmds">0</span><label>Commandes</label></div>
+          <div class="mc-stat"><span id="mc-hints">0</span><label>Indices</label></div>
+        </div>
+
+        <div class="mc-actions">
+          <button class="back-link" onclick="closeMissionComplete(); backHome();">← Accueil</button>
+          <button class="cta cta-sm" onclick="closeMissionComplete(); bootTerminal();">↺ Recommencer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="js/scenarios.js"></script>
+<script src="js/terminal.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
