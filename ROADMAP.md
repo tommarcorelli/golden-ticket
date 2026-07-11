@@ -1,6 +1,6 @@
 # 🎫 Golden Ticket — Feuille de route
 
-Statut au 11 juillet 2026 : **3 scénarios + 1 chapitre final épique** (Kerberoasting, Pass-the-Hash, Abus d'ACL, puis Chapitre Final qui enchaîne tout jusqu'au vrai Golden Ticket), moteur générique data-driven, leçon + glossaire + page d'analyse défense + progression de session + confettis/fanfare sur le final.
+Statut au 11 juillet 2026 : **3 scénarios + mode libre multi-chemins + 1 chapitre final épique** (Kerberoasting, Pass-the-Hash, Abus d'ACL, Mode libre combinant les trois avec plusieurs chemins valides, puis Chapitre Final qui enchaîne tout jusqu'au vrai Golden Ticket), moteur générique data-driven, leçon + glossaire + page d'analyse défense + progression persistante + classement des meilleurs temps + indices à paliers + confettis/fanfare sur le final.
 
 ---
 
@@ -31,7 +31,7 @@ Statut au 11 juillet 2026 : **3 scénarios + 1 chapitre final épique** (Kerbero
 
 - [x] **Scénario 02 — Pass-the-Hash**
 - [x] **Scénario 03 — Abus d'ACL**
-- [ ] Mode "libre" : un domaine plus grand avec plusieurs chemins d'attaque valides au lieu d'une seule chaîne imposée
+- [x] Mode "libre" : un domaine plus grand avec plusieurs chemins d'attaque valides au lieu d'une seule chaîne imposée
 - [x] Scénario "Golden Ticket" littéral — **Chapitre Final**, enchaîne les 3 techniques jusqu'au forgeage d'un ticket krbtgt
 
 ## 🔴 Chantiers d'architecture (fondations, avant d'empiler trop de contenu)
@@ -54,4 +54,5 @@ Statut au 11 juillet 2026 : **3 scénarios + 1 chapitre final épique** (Kerbero
 7. ~~Peaufinage : progression persistante, responsive mobile, écran de fin dédié, page d'explication post-flag~~ ✅
 8. ~~Système d'indices à paliers progressifs~~ ✅
 9. ~~Mode chrono / classement des meilleurs temps~~ ✅
-10. **Prochaine étape suggérée** : mode "libre" — un domaine plus grand avec plusieurs chemins d'attaque valides au lieu d'une chaîne imposée. C'est le seul gros chantier de contenu/gameplay qui reste ; tout le peaufinage (persistance, mobile, indices, classement) est fait.
+10. ~~Mode libre (domaine plus grand, chemins d'attaque multiples : ACL via groupe ou Pass-the-Hash direct)~~ ✅
+11. **Prochaine étape suggérée** : tous les chantiers identifiés sont faits. Pistes pour la suite : plus de comptes/chemins dans le mode libre (aujourd'hui 2 chemins, pourrait monter à 3-4), un mode difficulté ("dur" = indices désactivés), ou sortir le projet de cet environnement pour un vrai déploiement (le ROADMAP notait déjà que la sauvegarde ne pouvait pas être "vraie" avant — c'est fait, `localStorage` fonctionne dès que le site est servi normalement).

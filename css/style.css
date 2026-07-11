@@ -486,6 +486,31 @@ body::before{
   .epic-content p{max-width:none;}
 }
 
+/* ---------- variante bannière : mode libre (teal/violet, distinct du doré) ---------- */
+.libre-wrap{padding-bottom:40px;}
+.libre-banner{
+  background:
+    linear-gradient(120deg, rgba(91,42,134,0.16), rgba(91,42,134,0.06) 60%, rgba(53,211,153,0.10)),
+    var(--glass);
+  border-color:rgba(139,92,246,0.32);
+}
+.libre-banner:hover{
+  border-color:rgba(139,92,246,0.55);
+  box-shadow:0 20px 60px rgba(91,42,134,0.18);
+}
+.libre-banner .epic-glow{
+  background:radial-gradient(circle at 15% 50%, rgba(139,92,246,0.22), transparent 55%);
+}
+.libre-banner .epic-eyebrow{color:#c4b5fd;}
+.grad-libre{
+  background:linear-gradient(135deg, #a78bfa 0%, #35d399 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.libre-cta{
+  background:linear-gradient(135deg, #a78bfa 0%, #35d399 100%);
+  box-shadow:0 6px 24px rgba(139,92,246,0.22);
+}
+
 /* ---------- overlay épique + confettis ---------- */
 .confetti-host{
   position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1;
