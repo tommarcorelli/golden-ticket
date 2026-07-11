@@ -63,6 +63,8 @@ Statut au 11 juillet 2026 : **3 scénarios + mode libre multi-chemins + 1 chapit
 
 Idées non validées, à piocher selon l'envie. Pas d'ordre de priorité — c'est un vivier, pas un plan.
 
+**Périmètre du projet : un jeu solo pour apprendre, pas une plateforme.** Pas de comptes utilisateurs, pas de backend, pas de suivi de qui que ce soit. Toute idée qui demanderait un serveur ou une notion de "compte formateur / plusieurs joueurs suivis" est hors périmètre — à écarter si elle revient.
+
 ### 🟢 Petites (rapides, fun)
 - [ ] Konami code ou easter egg caché supplémentaire (ex: taper `matrix` déclenche une pluie de caractères verts sur le terminal)
 - [ ] Export/import de la progression en JSON téléchargeable — filet de sécurité vu que tout est en `localStorage` (changement de navigateur = tout perdu sinon)
@@ -85,7 +87,5 @@ Idées non validées, à piocher selon l'envie. Pas d'ordre de priorité — c'e
 - [ ] Scénario **Cloud/Azure AD (Entra ID)** : secrets d'App Registration exposés, abus de rôles Conditional Access — même logique pédagogique mais univers différent (extension naturelle après le tout-AD on-prem)
 
 ### 🤯 Trucs de fous (ambitieux, pas nécessairement raisonnables)
-- [ ] **Mode CTF multijoueur avec classement partagé en ligne** — nécessite un vrai backend (le `localStorage` actuel est par appareil, pas partageable) ; gros chantier d'infrastructure, à ne considérer que si le projet a une vraie audience
-- [ ] **Suivi pédagogique "formateur"** : un compte enseignant/formateur peut suivre la progression d'un groupe d'apprenants — implique authentification + backend, franchit clairement le cap "petit jeu solo" → "plateforme"
 - [ ] **Générateur de domaine aléatoire** : à chaque partie du mode libre, les comptes, mots de passe faibles et ACL vulnérables sont re-tirés aléatoirement (seed) — rejouabilité infinie, mais demande de repenser toute la logique de scénario en règles génériques plutôt qu'en données fixes
-- [ ] **Rejeu/replay partageable** : enregistrer la séquence de commandes d'une run et pouvoir la "rejouer" comme une vidéo (façon asciinema) pour la partager ou l'analyser après coup
+- [ ] **Rejeu/replay partageable** : enregistrer la séquence de commandes d'une run et pouvoir la "rejouer" comme une vidéo (façon asciinema) pour la partager ou l'analyser après coup, en local (fichier exporté, pas de serveur)
