@@ -67,8 +67,8 @@ Idées non validées, à piocher selon l'envie. Pas d'ordre de priorité — c'e
 
 ### 🟢 Petites (rapides, fun)
 - [ ] Konami code ou easter egg caché supplémentaire (ex: taper `matrix` déclenche une pluie de caractères verts sur le terminal)
-- [ ] Export/import de la progression en JSON téléchargeable — filet de sécurité vu que tout est en `localStorage` (changement de navigateur = tout perdu sinon)
-- [ ] Badge/"succès" fun et discrets : "Sans indice" (mission finie sans cliquer 💡), "Curieux" (a tapé `man` sur toutes les commandes), "Acharné" (a tenté de cracker svc_legacy 3 fois)
+- [x] Export/import de la progression en JSON téléchargeable — filet de sécurité vu que tout est en `localStorage` (changement de navigateur = tout perdu sinon)
+- [x] Badge/"succès" fun et discrets : 6 succès (Sans indice, Éclair, Curieux, Les deux routes, Golden Ticket, Maître du domaine), visibles dans le classement, débloqués en toast à la fin d'une mission
 - [ ] Bouton "partager mon temps" qui génère une image ou un texte à copier-coller (façon Wordle)
 - [ ] Effet sonore distinct pour une commande refusée (petit "buzz" discret, toggle activable/désactivable)
 - [ ] Mode clair en plus du thème sombre actuel (toggle, si le style s'y prête sans dénaturer l'identité visuelle)
