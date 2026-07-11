@@ -146,6 +146,10 @@ function handle(raw){
   print(`<span class="out-dim">💡 Tape <b>help</b> pour la liste des commandes, ou <b>man &lt;commande&gt;</b> pour une explication.</span>`);
 }
 
+function vibrate(pattern){
+  try{ navigator.vibrate?.(pattern); }catch(e){ /* pas dispo, tant pis */ }
+}
+
 function finishMission(){
   if(typeof markScenarioComplete === 'function') markScenarioComplete(state.scenarioId);
   playVictorySound();
@@ -154,8 +158,10 @@ function finishMission(){
   if(typeof recordBestTime === 'function') recordBestTime(state.scenarioId, elapsed);
   if(sc.epic){
     playEpicFanfare();
+    vibrate([40, 60, 40, 60, 140]);
     setTimeout(()=> showMissionComplete(elapsed, cmdCount, hintsUsed), 1300);
   } else {
+    vibrate(50);
     setTimeout(()=> showMissionComplete(elapsed, cmdCount, hintsUsed), 900);
   }
 }

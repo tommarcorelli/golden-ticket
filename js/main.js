@@ -14,18 +14,56 @@ function showView(id){
 
 let lessonScenarioId = 'kerberoast';
 let currentSlide = 0;
-const completedScenarios = {};
+
+// ---------- progression persistante (localStorage) ----------
+const PROGRESS_KEY = 'goldenticket_progress_v1';
+
+function loadProgress(){
+  try{
+    const raw = localStorage.getItem(PROGRESS_KEY);
+    if(!raw) return { completed:{}, bestTimes:{} };
+    const parsed = JSON.parse(raw);
+    return { completed: parsed.completed || {}, bestTimes: parsed.bestTimes || {} };
+  }catch(e){
+    return { completed:{}, bestTimes:{} };
+  }
+}
+function saveProgress(){
+  try{
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify({ completed: completedScenarios, bestTimes: bestTimes }));
+  }catch(e){ /* stockage indisponible (navigation privée...), tant pis */ }
+}
+
+function pruneOrphanIds(obj){
+  // évite qu'un id de scénario renommé/supprimé reste coincé en localStorage
+  const validIds = Object.keys(SCENARIOS);
+  Object.keys(obj).forEach(id => { if(!validIds.includes(id)) delete obj[id]; });
+  return obj;
+}
+
+const savedProgress = loadProgress();
+const completedScenarios = pruneOrphanIds(savedProgress.completed);
+const bestTimes = pruneOrphanIds(savedProgress.bestTimes);
 
 function markScenarioComplete(scenarioId){
   completedScenarios[scenarioId] = true;
+  saveProgress();
   updateHomeBadges();
 }
 
-const bestTimes = {};
 function recordBestTime(scenarioId, elapsed){
   if(!bestTimes[scenarioId] || elapsed < bestTimes[scenarioId]){
     bestTimes[scenarioId] = elapsed;
   }
+  saveProgress();
+  updateHomeBadges();
+}
+
+function resetProgress(){
+  if(!confirm('Effacer ta progression sauvegardée (scénarios terminés, meilleurs temps) ? Cette action est irréversible.')) return;
+  Object.keys(completedScenarios).forEach(k => delete completedScenarios[k]);
+  Object.keys(bestTimes).forEach(k => delete bestTimes[k]);
+  saveProgress();
   updateHomeBadges();
 }
 
@@ -45,7 +83,8 @@ function updateHomeBadges(){
   const done = ids.filter(id => completedScenarios[id]).length;
   const track = document.getElementById('progress-track');
   if(track){
-    track.innerHTML = `<span class="pt-fill">${done}</span> / ${ids.length} scénario${ids.length>1?'s':''} complété${done>1?'s':''} cette session`;
+    track.innerHTML = `<span class="pt-fill">${done}</span> / ${ids.length} scénario${ids.length>1?'s':''} complété${done>1?'s':''}`
+      + (done > 0 ? ` <button class="progress-reset" onclick="resetProgress()">↺ réinitialiser</button>` : '');
   }
 }
 

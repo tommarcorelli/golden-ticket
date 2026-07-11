@@ -15,17 +15,17 @@ Statut au 11 juillet 2026 : **3 scénarios + 1 chapitre final épique** (Kerbero
 - [x] Easter eggs (`sudo`, `ls`, `cat`...)
 - [x] Favicon + titre d'onglet dynamique selon l'écran
 - [x] Bouton "copier le flag"
-- [ ] Son ou vibration légère au flag trouvé
+- [x] Son ou vibration légère au flag trouvé
 
 ## 🟡 Chantiers moyens (une session de travail)
 
-- [ ] Écran de fin de mission dédié (récap visuel de la chaîne d'attaque, pas juste du texte terminal)
-- [ ] Glossaire AD consultable hors mission (SPN, ACL, Kerberos, Domain Admin, GPO...)
+- [x] Écran de fin de mission dédié (récap visuel de la chaîne d'attaque, pas juste du texte terminal)
+- [x] Glossaire AD consultable hors mission (SPN, ACL, Kerberos, Domain Admin, GPO...)
 - [ ] Système d'indices à paliers plus progressif (vague → quasi-solution)
-- [ ] Page "Explication complète" après le flag : comment se protéger en vrai (gMSA, rotation de mot de passe...)
-- [ ] Mode "chrono" avec classement des meilleurs temps (stockage local)
-- [ ] Responsive mobile propre
-- [ ] Progression visuelle sur l'accueil (scénario complété = coche/étoile)
+- [x] Page "Explication complète" après le flag : comment se protéger en vrai (gMSA, rotation de mot de passe...)
+- [ ] Mode "chrono" avec classement des meilleurs temps (au-delà du simple record personnel affiché sur l'accueil)
+- [x] Responsive mobile propre
+- [x] Progression visuelle sur l'accueil (scénario complété = badge, persistant en localStorage)
 
 ## 🟠 Gros chantiers (nouveau contenu substantiel)
 
@@ -38,8 +38,8 @@ Statut au 11 juillet 2026 : **3 scénarios + 1 chapitre final épique** (Kerbero
 
 - [x] Moteur de scénarios data-driven (`terminal.js` générique + `scenarios.js` pour les données/logique par scénario)
 - [x] Séparer commandes génériques du moteur (help/man/clear/easter eggs) des commandes spécifiques au scénario
-- [ ] Vraie sauvegarde de progression (nécessite un stockage persistant réel, pas possible dans les artifacts Claude.ai — à prévoir une fois le projet hors de cet environnement)
-- [ ] Mode "chapitre final" combinant plusieurs techniques enchaînées (façon boss fight de LinuxDojo) : Kerberoasting → Pass-the-Hash → abus d'ACL → Golden Ticket, à la suite
+- [x] Vraie sauvegarde de progression — le projet vit hors des artifacts Claude.ai (dépôt git avec remote), donc `localStorage` fonctionne : scénarios terminés + meilleurs temps persistent entre sessions (`js/main.js`, clé `goldenticket_progress_v1`), avec réinitialisation manuelle possible depuis l'accueil.
+- [x] Mode "chapitre final" combinant plusieurs techniques enchaînées (façon boss fight de LinuxDojo) : Kerberoasting → Pass-the-Hash → abus d'ACL → Golden Ticket, à la suite
 
 ---
 
@@ -50,4 +50,6 @@ Statut au 11 juillet 2026 : **3 scénarios + 1 chapitre final épique** (Kerbero
 3. ~~Scénario 02 (Pass-the-Hash)~~ ✅
 4. ~~Moteur data-driven~~ ✅
 5. ~~Scénario 03 (Abus d'ACL)~~ ✅
-6. **Prochaine étape suggérée** : peaufinage (progression persistante entre scénarios sur l'accueil, responsive mobile, page d'explication complète post-flag) avant d'attaquer le mode "chapitre final" qui enchaîne les 3 techniques à la suite.
+6. ~~Chapitre final (enchaînement des 3 techniques)~~ ✅
+7. ~~Peaufinage : progression persistante, responsive mobile, écran de fin dédié, page d'explication post-flag~~ ✅
+8. **Prochaine étape suggérée** : système d'indices à paliers (un indice vague, puis un plus précis, puis quasi-solution) et/ou mode "libre" avec plusieurs chemins d'attaque valides dans un domaine plus grand — les deux derniers gros chantiers de contenu/gameplay restants.

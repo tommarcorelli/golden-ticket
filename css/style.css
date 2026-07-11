@@ -515,6 +515,13 @@ body::before{
   color:var(--text-dim);
 }
 .progress-track .pt-fill{color:var(--gold-li);}
+.progress-reset{
+  font-family:var(--font-mono);font-size:10px;color:var(--text-dim);
+  background:none;border:none;cursor:pointer;margin-left:8px;
+  text-decoration:underline;text-underline-offset:2px;
+  transition:color .15s ease;
+}
+.progress-reset:hover{color:var(--crimson-li);}
 
 /* ---------- responsive mobile ---------- */
 @media (max-width:640px){
