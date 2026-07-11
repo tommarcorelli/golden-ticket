@@ -23,7 +23,7 @@ Statut au 11 juillet 2026 : **3 scénarios + 1 chapitre final épique** (Kerbero
 - [x] Glossaire AD consultable hors mission (SPN, ACL, Kerberos, Domain Admin, GPO...)
 - [x] Système d'indices à paliers plus progressif (vague → quasi-solution)
 - [x] Page "Explication complète" après le flag : comment se protéger en vrai (gMSA, rotation de mot de passe...)
-- [ ] Mode "chrono" avec classement des meilleurs temps (au-delà du simple record personnel affiché sur l'accueil)
+- [x] Mode "chrono" avec classement des meilleurs temps (au-delà du simple record personnel affiché sur l'accueil)
 - [x] Responsive mobile propre
 - [x] Progression visuelle sur l'accueil (scénario complété = badge, persistant en localStorage)
 
@@ -53,4 +53,5 @@ Statut au 11 juillet 2026 : **3 scénarios + 1 chapitre final épique** (Kerbero
 6. ~~Chapitre final (enchaînement des 3 techniques)~~ ✅
 7. ~~Peaufinage : progression persistante, responsive mobile, écran de fin dédié, page d'explication post-flag~~ ✅
 8. ~~Système d'indices à paliers progressifs~~ ✅
-9. **Prochaine étape suggérée** : mode "chrono" avec classement des meilleurs temps (au-delà du record personnel déjà affiché), puis le mode "libre" à chemins multiples — le seul gros chantier de contenu/gameplay restant.
+9. ~~Mode chrono / classement des meilleurs temps~~ ✅
+10. **Prochaine étape suggérée** : mode "libre" — un domaine plus grand avec plusieurs chemins d'attaque valides au lieu d'une chaîne imposée. C'est le seul gros chantier de contenu/gameplay qui reste ; tout le peaufinage (persistance, mobile, indices, classement) est fait.
