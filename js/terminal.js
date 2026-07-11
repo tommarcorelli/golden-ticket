@@ -257,6 +257,8 @@ function showMissionComplete(elapsed, cmds, hints, newAchievements){
   document.getElementById('mc-time').textContent = elapsed + 's';
   document.getElementById('mc-cmds').textContent = cmds;
   document.getElementById('mc-hints').textContent = hints;
+  const certBtn = document.getElementById('mc-cert-btn');
+  if(certBtn) certBtn.style.display = sc.epic ? 'inline-block' : 'none';
 
   const confettiHost = document.getElementById('confetti-host');
   confettiHost.innerHTML = '';
