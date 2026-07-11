@@ -27,6 +27,11 @@
     <p class="lead">Un terminal Windows/Active Directory simulé. De vraies techniques d'attaque — Kerberoasting, Pass-the-Hash, abus d'ACL — jusqu'à devenir Domain Admin. Chaque flag t'apprend une vraie faille.</p>
     <button class="cta" onclick="goToLesson('kerberoast')">▶ Commencer le scénario 01</button>
     <div class="progress-track" id="progress-track"></div>
+    <div class="progress-io">
+      <button class="io-link" onclick="exportProgress()">⬇ Exporter ma progression</button>
+      <button class="io-link" onclick="document.getElementById('import-file-input').click()">⬆ Importer</button>
+      <input type="file" id="import-file-input" accept="application/json" style="display:none;" onchange="importProgress(this.files[0])">
+    </div>
 
     <div class="hero-panel">
 <span class="l1">C:\&gt; whoami /priv</span>
@@ -158,6 +163,7 @@ Ticket obtenu. Prêt à cracker.</div>
       <div class="scenario-tag">🏆 CLASSEMENT · MEILLEURS TEMPS</div>
     </div>
     <p class="lb-intro">Tes 5 meilleurs temps par scénario, gardés en mémoire sur cet appareil.</p>
+    <div id="achievements-grid" class="ach-grid"></div>
     <div id="leaderboard-body" class="lb-grid"></div>
   </div>
 </section>
@@ -224,6 +230,7 @@ Ticket obtenu. Prêt à cracker.</div>
         <p class="mc-sub" id="mc-sub-text">Compte de service exploité, groupe privilégié abusé.</p>
 
         <div class="mc-chain" id="mc-chain"></div>
+        <div class="mc-achievements" id="mc-achievements"></div>
 
         <div class="mc-stats">
           <div class="mc-stat"><span id="mc-time">0s</span><label>Temps</label></div>

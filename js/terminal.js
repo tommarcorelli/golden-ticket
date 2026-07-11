@@ -9,6 +9,7 @@ let historyIndex = -1;
 let missionStart = null;
 let cmdCount = 0;
 let hintsUsed = 0;
+let manCount = 0;
 
 const commonManPages = {
   'whoami': { name:'whoami /priv', role:'Affiche ton identité et tes droits actuels',
@@ -97,9 +98,11 @@ function bootTerminal(scenarioId){
   missionStart = Date.now();
   cmdCount = 0;
   hintsUsed = 0;
+  manCount = 0;
   document.getElementById('screen').closest('.terminal').classList.remove('victory');
   document.getElementById('mission-complete')?.classList.remove('show');
   document.getElementById('mission-complete')?.classList.remove('epic');
+  const achHost = document.getElementById('mc-achievements'); if(achHost) achHost.innerHTML = '';
   const ch = document.getElementById('confetti-host'); if(ch) ch.innerHTML = '';
   document.getElementById('game-tag').textContent = sc.tag;
   document.getElementById('cmd-ref-list').innerHTML = sc.cmdRefHtml;
@@ -132,6 +135,7 @@ function handle(raw){
 
   let m = lower.match(/^man (.+)$/);
   if(m){
+    manCount++;
     const key = m[1].trim();
     const doc = (sc.manPages && sc.manPages[key]) || commonManPages[key];
     if(!doc){ print(`<span class="out-bad">Pas de page de manuel pour '${escapeHtml(key)}'.</span>`); return; }
@@ -181,17 +185,24 @@ function finishMission(){
   const sc = currentScenario();
   const elapsed = Math.max(1, Math.round((Date.now() - missionStart) / 1000));
   if(typeof recordBestTime === 'function') recordBestTime(state.scenarioId, elapsed);
+  let newAchievements = [];
+  if(typeof unlockAchievements === 'function'){
+    newAchievements = unlockAchievements({
+      scenarioId: state.scenarioId, elapsed, hintsUsed, manCount,
+      pathTaken: state.extra ? state.extra.pathTaken : null
+    });
+  }
   if(sc.epic){
     playEpicFanfare();
     vibrate([40, 60, 40, 60, 140]);
-    setTimeout(()=> showMissionComplete(elapsed, cmdCount, hintsUsed), 1300);
+    setTimeout(()=> showMissionComplete(elapsed, cmdCount, hintsUsed, newAchievements), 1300);
   } else {
     vibrate(50);
-    setTimeout(()=> showMissionComplete(elapsed, cmdCount, hintsUsed), 900);
+    setTimeout(()=> showMissionComplete(elapsed, cmdCount, hintsUsed, newAchievements), 900);
   }
 }
 
-function showMissionComplete(elapsed, cmds, hints){
+function showMissionComplete(elapsed, cmds, hints, newAchievements){
   const sc = currentScenario();
   const overlay = document.getElementById('mission-complete');
   const card = overlay.querySelector('.mc-card');
@@ -202,6 +213,12 @@ function showMissionComplete(elapsed, cmds, hints){
   document.getElementById('mc-chain').innerHTML = sc.chainSteps.map((s,i) =>
     (i > 0 ? '<div class="mc-arrow">→</div>' : '') + `<div class="mc-step">${s.icon}<span>${s.label}</span></div>`
   ).join('');
+  const achHost = document.getElementById('mc-achievements');
+  if(achHost){
+    achHost.innerHTML = (newAchievements || []).map(a =>
+      `<div class="mc-ach-toast"><span class="ach-icon">${a.icon}</span><span><b>Succès débloqué : ${a.title}</b> — ${a.desc}</span></div>`
+    ).join('');
+  }
   document.getElementById('mc-time').textContent = elapsed + 's';
   document.getElementById('mc-cmds').textContent = cmds;
   document.getElementById('mc-hints').textContent = hints;

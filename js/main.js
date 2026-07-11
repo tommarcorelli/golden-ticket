@@ -22,16 +22,25 @@ const PROGRESS_KEY = 'goldenticket_progress_v1';
 function loadProgress(){
   try{
     const raw = localStorage.getItem(PROGRESS_KEY);
-    if(!raw) return { completed:{}, bestTimes:{}, runHistory:{} };
+    if(!raw) return { completed:{}, bestTimes:{}, runHistory:{}, achievements:{}, librePaths:{} };
     const parsed = JSON.parse(raw);
-    return { completed: parsed.completed || {}, bestTimes: parsed.bestTimes || {}, runHistory: parsed.runHistory || {} };
+    return {
+      completed: parsed.completed || {},
+      bestTimes: parsed.bestTimes || {},
+      runHistory: parsed.runHistory || {},
+      achievements: parsed.achievements || {},
+      librePaths: parsed.librePaths || {}
+    };
   }catch(e){
-    return { completed:{}, bestTimes:{}, runHistory:{} };
+    return { completed:{}, bestTimes:{}, runHistory:{}, achievements:{}, librePaths:{} };
   }
 }
 function saveProgress(){
   try{
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify({ completed: completedScenarios, bestTimes: bestTimes, runHistory: runHistory }));
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify({
+      completed: completedScenarios, bestTimes: bestTimes, runHistory: runHistory,
+      achievements: achievements, librePaths: librePaths
+    }));
   }catch(e){ /* stockage indisponible (navigation privée...), tant pis */ }
 }
 
@@ -47,6 +56,8 @@ const savedProgress = loadProgress();
 const completedScenarios = pruneOrphanIds(savedProgress.completed);
 const bestTimes = pruneOrphanIds(savedProgress.bestTimes);
 const runHistory = pruneOrphanIds(savedProgress.runHistory);
+const achievements = savedProgress.achievements;
+const librePaths = savedProgress.librePaths;
 
 function markScenarioComplete(scenarioId){
   completedScenarios[scenarioId] = true;
@@ -67,12 +78,113 @@ function recordBestTime(scenarioId, elapsed){
 }
 
 function resetProgress(){
-  if(!confirm('Effacer ta progression sauvegardée (scénarios terminés, meilleurs temps, classement) ? Cette action est irréversible.')) return;
+  if(!confirm('Effacer ta progression sauvegardée (scénarios terminés, meilleurs temps, classement, succès) ? Cette action est irréversible.')) return;
   Object.keys(completedScenarios).forEach(k => delete completedScenarios[k]);
   Object.keys(bestTimes).forEach(k => delete bestTimes[k]);
   Object.keys(runHistory).forEach(k => delete runHistory[k]);
+  Object.keys(achievements).forEach(k => delete achievements[k]);
+  Object.keys(librePaths).forEach(k => delete librePaths[k]);
   saveProgress();
   updateHomeBadges();
+}
+
+// ---------- succès ----------
+const ACHIEVEMENTS = [
+  { id:'no_hint',       icon:'🎯', title:'Sans indice',    desc:"Terminer une mission sans cliquer sur Indice" },
+  { id:'speedster',     icon:'⚡', title:'Éclair',          desc:"Terminer une mission en moins de 45s" },
+  { id:'curious',       icon:'🧠', title:'Curieux',         desc:"Consulter man au moins 3 fois dans une mission" },
+  { id:'both_paths',    icon:'🧭', title:'Les deux routes', desc:"Terminer le mode libre par ses deux chemins" },
+  { id:'golden_finisher',icon:'👑', title:'Golden Ticket',  desc:"Terminer le Chapitre Final" },
+  { id:'domain_master', icon:'🏆', title:'Maître du domaine', desc:"Terminer les 5 scénarios" },
+];
+
+function unlockAchievements({ scenarioId, elapsed, hintsUsed, manCount, pathTaken }){
+  const newlyUnlocked = [];
+  const unlock = (id) => {
+    if(!achievements[id]){
+      achievements[id] = { date: new Date().toISOString() };
+      const def = ACHIEVEMENTS.find(a => a.id === id);
+      if(def) newlyUnlocked.push(def);
+    }
+  };
+
+  if(hintsUsed === 0) unlock('no_hint');
+  if(elapsed < 45) unlock('speedster');
+  if(manCount >= 3) unlock('curious');
+  if(scenarioId === 'goldenticket') unlock('golden_finisher');
+
+  if(scenarioId === 'libre' && pathTaken){
+    librePaths[pathTaken] = true;
+    if(librePaths.acl && librePaths.pth) unlock('both_paths');
+  }
+
+  const allIds = Object.keys(SCENARIOS);
+  if(allIds.every(id => completedScenarios[id])) unlock('domain_master');
+
+  saveProgress();
+  return newlyUnlocked;
+}
+
+function renderAchievementsGrid(){
+  const host = document.getElementById('achievements-grid');
+  if(!host) return;
+  host.innerHTML = ACHIEVEMENTS.map(a => {
+    const unlocked = !!achievements[a.id];
+    return `<div class="ach-badge ${unlocked?'unlocked':''}">
+      <span class="ach-icon">${a.icon}</span>
+      <span class="ach-title">${a.title}</span>
+      <span class="ach-desc">${unlocked ? a.desc : '???'}</span>
+    </div>`;
+  }).join('');
+}
+
+// ---------- export / import ----------
+function exportProgress(){
+  const payload = {
+    version:1, exportedAt:new Date().toISOString(),
+    completed: completedScenarios, bestTimes: bestTimes, runHistory: runHistory,
+    achievements: achievements, librePaths: librePaths
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dateStr = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `golden-ticket-progression-${dateStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function importProgress(file){
+  if(!file) return;
+  if(!confirm('Importer ce fichier remplacera ta progression actuelle sur cet appareil. Continuer ?')) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      if(typeof data !== 'object' || data === null) throw new Error('format invalide');
+      Object.keys(completedScenarios).forEach(k => delete completedScenarios[k]);
+      Object.keys(bestTimes).forEach(k => delete bestTimes[k]);
+      Object.keys(runHistory).forEach(k => delete runHistory[k]);
+      Object.keys(achievements).forEach(k => delete achievements[k]);
+      Object.keys(librePaths).forEach(k => delete librePaths[k]);
+      Object.assign(completedScenarios, pruneOrphanIds(data.completed || {}));
+      Object.assign(bestTimes, pruneOrphanIds(data.bestTimes || {}));
+      Object.assign(runHistory, pruneOrphanIds(data.runHistory || {}));
+      Object.assign(achievements, data.achievements || {});
+      Object.assign(librePaths, data.librePaths || {});
+      saveProgress();
+      updateHomeBadges();
+      renderAchievementsGrid();
+      alert('Progression importée avec succès.');
+    }catch(e){
+      alert("Fichier invalide : impossible d'importer cette progression.");
+    }
+    document.getElementById('import-file-input').value = '';
+  };
+  reader.readAsText(file);
 }
 
 function updateHomeBadges(){
@@ -158,6 +270,7 @@ function scenarioDisplayName(sc){
 }
 
 function showLeaderboard(){
+  renderAchievementsGrid();
   const ids = Object.keys(SCENARIOS);
   const host = document.getElementById('leaderboard-body');
   const totalRuns = ids.reduce((n, id) => n + (runHistory[id] ? runHistory[id].length : 0), 0);
