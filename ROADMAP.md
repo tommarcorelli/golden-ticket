@@ -55,4 +55,37 @@ Statut au 11 juillet 2026 : **3 scénarios + mode libre multi-chemins + 1 chapit
 8. ~~Système d'indices à paliers progressifs~~ ✅
 9. ~~Mode chrono / classement des meilleurs temps~~ ✅
 10. ~~Mode libre (domaine plus grand, chemins d'attaque multiples : ACL via groupe ou Pass-the-Hash direct)~~ ✅
-11. **Prochaine étape suggérée** : tous les chantiers identifiés sont faits. Pistes pour la suite : plus de comptes/chemins dans le mode libre (aujourd'hui 2 chemins, pourrait monter à 3-4), un mode difficulté ("dur" = indices désactivés), ou sortir le projet de cet environnement pour un vrai déploiement (le ROADMAP notait déjà que la sauvegarde ne pouvait pas être "vraie" avant — c'est fait, `localStorage` fonctionne dès que le site est servi normalement).
+11. **Prochaine étape suggérée** : tous les chantiers identifiés sont faits. Voir le backlog d'idées ci-dessous — non priorisé, à trier selon l'envie du moment.
+
+---
+
+## 💡 Backlog d'idées (pas encore priorisées)
+
+Idées non validées, à piocher selon l'envie. Pas d'ordre de priorité — c'est un vivier, pas un plan.
+
+### 🟢 Petites (rapides, fun)
+- [ ] Konami code ou easter egg caché supplémentaire (ex: taper `matrix` déclenche une pluie de caractères verts sur le terminal)
+- [ ] Export/import de la progression en JSON téléchargeable — filet de sécurité vu que tout est en `localStorage` (changement de navigateur = tout perdu sinon)
+- [ ] Badge/"succès" fun et discrets : "Sans indice" (mission finie sans cliquer 💡), "Curieux" (a tapé `man` sur toutes les commandes), "Acharné" (a tenté de cracker svc_legacy 3 fois)
+- [ ] Bouton "partager mon temps" qui génère une image ou un texte à copier-coller (façon Wordle)
+- [ ] Effet sonore distinct pour une commande refusée (petit "buzz" discret, toggle activable/désactivable)
+- [ ] Mode clair en plus du thème sombre actuel (toggle, si le style s'y prête sans dénaturer l'identité visuelle)
+
+### 🟡 Moyennes (une session)
+- [ ] Mode "Expert" : indices désactivés, chrono plus visible pendant la mission (pas juste au récap), classement séparé de celui du mode normal
+- [ ] Certificat de fin (image ou PDF téléchargeable) après le Chapitre Final — sympa pour un contexte formation/sensibilisation en entreprise
+- [ ] PWA installable (manifest + service worker) : le jeu s'installe et fonctionne hors-ligne sur mobile/desktop
+- [ ] Étendre le mode libre à 3-4 chemins d'attaque au lieu de 2, avec un compte supplémentaire "piège" plus subtil (ACL qui semble exploitable mais mène à une impasse)
+- [ ] Accessibilité clavier complète + support lecteur d'écran sur les écrans hors-terminal (accueil, glossaire, indices)
+
+### 🟠 Grosses (nouveau système)
+- [ ] **Notion de furtivité (OPSEC)** : certaines actions "bruyantes" (trop de tickets Kerberoast demandés d'un coup, essais de mot de passe répétés) font monter une jauge d'alerte SOC simulée ; au-delà d'un seuil, un message "l'équipe sécurité a été notifiée" change la fin de mission (pas un échec, mais un score/évaluation différent — introduit la notion réelle de détection, pas juste d'exploitation)
+- [ ] **Mode Blue Team** : le joueur devient l'analyste SOC, reçoit des logs (fictifs) d'une attaque déjà en cours, et doit identifier la technique utilisée et la chronologie — pédagogiquement complémentaire au mode attaque existant
+- [ ] **Carte d'attaque façon BloodHound** : graphe SVG qui se dessine en direct au fil de l'énumération (comptes découverts = nœuds, ACL/droits trouvés = arêtes), très parlant visuellement et cohérent avec le thème du jeu
+- [ ] Scénario **Cloud/Azure AD (Entra ID)** : secrets d'App Registration exposés, abus de rôles Conditional Access — même logique pédagogique mais univers différent (extension naturelle après le tout-AD on-prem)
+
+### 🤯 Trucs de fous (ambitieux, pas nécessairement raisonnables)
+- [ ] **Mode CTF multijoueur avec classement partagé en ligne** — nécessite un vrai backend (le `localStorage` actuel est par appareil, pas partageable) ; gros chantier d'infrastructure, à ne considérer que si le projet a une vraie audience
+- [ ] **Suivi pédagogique "formateur"** : un compte enseignant/formateur peut suivre la progression d'un groupe d'apprenants — implique authentification + backend, franchit clairement le cap "petit jeu solo" → "plateforme"
+- [ ] **Générateur de domaine aléatoire** : à chaque partie du mode libre, les comptes, mots de passe faibles et ACL vulnérables sont re-tirés aléatoirement (seed) — rejouabilité infinie, mais demande de repenser toute la logique de scénario en règles génériques plutôt qu'en données fixes
+- [ ] **Rejeu/replay partageable** : enregistrer la séquence de commandes d'une run et pouvoir la "rejouer" comme une vidéo (façon asciinema) pour la partager ou l'analyser après coup
