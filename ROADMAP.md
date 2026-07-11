@@ -74,7 +74,7 @@ Idées non validées, à piocher selon l'envie. Pas d'ordre de priorité — c'e
 - [ ] Mode clair en plus du thème sombre actuel (toggle, si le style s'y prête sans dénaturer l'identité visuelle)
 
 ### 🟡 Moyennes (une session)
-- [ ] Mode "Expert" : indices désactivés, chrono plus visible pendant la mission (pas juste au récap), classement séparé de celui du mode normal
+- [x] Mode "Expert" : indices désactivés, chrono plus visible pendant la mission (pas juste au récap), classement séparé de celui du mode normal
 - [ ] Certificat de fin (image ou PDF téléchargeable) après le Chapitre Final — sympa pour un contexte formation/sensibilisation en entreprise
 - [ ] PWA installable (manifest + service worker) : le jeu s'installe et fonctionne hors-ligne sur mobile/desktop
 - [ ] Étendre le mode libre à 3-4 chemins d'attaque au lieu de 2, avec un compte supplémentaire "piège" plus subtil (ACL qui semble exploitable mais mène à une impasse)
