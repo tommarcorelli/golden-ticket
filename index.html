@@ -13,6 +13,7 @@
 <div class="topbar">
   <div class="brand"><span class="ticket">🎫</span> GOLDEN <span class="grad">TICKET</span></div>
   <div style="display:flex;align-items:center;gap:14px;">
+    <button class="back-link" onclick="showLeaderboard()">🏆 Classement</button>
     <button class="back-link" onclick="showView('view-glossary')">📖 Glossaire</button>
     <div class="domain-pill">CORP.LOCAL</div>
   </div>
@@ -135,6 +136,18 @@ Ticket obtenu. Prêt à cracker.</div>
   </div>
 </section>
 
+<!-- ============ CLASSEMENT ============ -->
+<section id="view-leaderboard" class="view">
+  <div class="lesson-shell" style="max-width:640px;">
+    <div class="game-header">
+      <button class="back-link" onclick="backHome()">← Retour</button>
+      <div class="scenario-tag">🏆 CLASSEMENT · MEILLEURS TEMPS</div>
+    </div>
+    <p class="lb-intro">Tes 5 meilleurs temps par scénario, gardés en mémoire sur cet appareil.</p>
+    <div id="leaderboard-body" class="lb-grid"></div>
+  </div>
+</section>
+
 <!-- ============ EN SAVOIR PLUS (deep dive défense) ============ -->
 <section id="view-explain" class="view">
   <div class="lesson-shell" style="max-width:640px;">
@@ -206,6 +219,7 @@ Ticket obtenu. Prêt à cracker.</div>
 
         <div class="mc-actions">
           <button class="back-link" onclick="closeMissionComplete(); backHome();">← Accueil</button>
+          <button class="back-link" onclick="closeMissionComplete(); showLeaderboard();">🏆 Classement</button>
           <button class="back-link" onclick="closeMissionComplete(); showExplain();">🛡️ En savoir plus</button>
           <button class="cta cta-sm" onclick="closeMissionComplete(); bootTerminal();">↺ Recommencer</button>
         </div>

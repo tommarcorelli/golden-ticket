@@ -7,7 +7,8 @@ function showView(id){
     'view-lesson': '📘 Leçon — Golden Ticket',
     'view-game': '🎫 Mission en cours — Golden Ticket',
     'view-glossary': '📖 Glossaire — Golden Ticket',
-    'view-explain': '🛡️ Analyse — Golden Ticket'
+    'view-explain': '🛡️ Analyse — Golden Ticket',
+    'view-leaderboard': '🏆 Classement — Golden Ticket'
   };
   document.title = titles[id] || 'Golden Ticket';
 }
@@ -21,16 +22,16 @@ const PROGRESS_KEY = 'goldenticket_progress_v1';
 function loadProgress(){
   try{
     const raw = localStorage.getItem(PROGRESS_KEY);
-    if(!raw) return { completed:{}, bestTimes:{} };
+    if(!raw) return { completed:{}, bestTimes:{}, runHistory:{} };
     const parsed = JSON.parse(raw);
-    return { completed: parsed.completed || {}, bestTimes: parsed.bestTimes || {} };
+    return { completed: parsed.completed || {}, bestTimes: parsed.bestTimes || {}, runHistory: parsed.runHistory || {} };
   }catch(e){
-    return { completed:{}, bestTimes:{} };
+    return { completed:{}, bestTimes:{}, runHistory:{} };
   }
 }
 function saveProgress(){
   try{
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify({ completed: completedScenarios, bestTimes: bestTimes }));
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify({ completed: completedScenarios, bestTimes: bestTimes, runHistory: runHistory }));
   }catch(e){ /* stockage indisponible (navigation privée...), tant pis */ }
 }
 
@@ -41,9 +42,11 @@ function pruneOrphanIds(obj){
   return obj;
 }
 
+const RUN_HISTORY_MAX = 5;
 const savedProgress = loadProgress();
 const completedScenarios = pruneOrphanIds(savedProgress.completed);
 const bestTimes = pruneOrphanIds(savedProgress.bestTimes);
+const runHistory = pruneOrphanIds(savedProgress.runHistory);
 
 function markScenarioComplete(scenarioId){
   completedScenarios[scenarioId] = true;
@@ -55,14 +58,19 @@ function recordBestTime(scenarioId, elapsed){
   if(!bestTimes[scenarioId] || elapsed < bestTimes[scenarioId]){
     bestTimes[scenarioId] = elapsed;
   }
+  if(!runHistory[scenarioId]) runHistory[scenarioId] = [];
+  runHistory[scenarioId].push({ time: elapsed, date: new Date().toISOString() });
+  runHistory[scenarioId].sort((a,b) => a.time - b.time);
+  runHistory[scenarioId] = runHistory[scenarioId].slice(0, RUN_HISTORY_MAX);
   saveProgress();
   updateHomeBadges();
 }
 
 function resetProgress(){
-  if(!confirm('Effacer ta progression sauvegardée (scénarios terminés, meilleurs temps) ? Cette action est irréversible.')) return;
+  if(!confirm('Effacer ta progression sauvegardée (scénarios terminés, meilleurs temps, classement) ? Cette action est irréversible.')) return;
   Object.keys(completedScenarios).forEach(k => delete completedScenarios[k]);
   Object.keys(bestTimes).forEach(k => delete bestTimes[k]);
+  Object.keys(runHistory).forEach(k => delete runHistory[k]);
   saveProgress();
   updateHomeBadges();
 }
@@ -144,6 +152,41 @@ function backHome(){
   updateHomeBadges();
 }
 
+function scenarioDisplayName(sc){
+  const parts = sc.tag.split('·');
+  return parts[1] ? parts[1].trim() : sc.tag;
+}
+
+function showLeaderboard(){
+  const ids = Object.keys(SCENARIOS);
+  const host = document.getElementById('leaderboard-body');
+  const totalRuns = ids.reduce((n, id) => n + (runHistory[id] ? runHistory[id].length : 0), 0);
+
+  if(totalRuns === 0){
+    host.innerHTML = `<p class="lb-empty">Aucune mission terminée pour l'instant. Termine un scénario pour apparaître ici — tes 5 meilleurs temps par scénario sont conservés.</p>`;
+  } else {
+    host.innerHTML = ids.map(id => {
+      const sc = SCENARIOS[id];
+      const runs = runHistory[id] || [];
+      if(runs.length === 0) return '';
+      const medals = ['🥇','🥈','🥉'];
+      const rows = runs.map((r,i) => {
+        const d = new Date(r.date);
+        const dateStr = isNaN(d) ? '' : d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'2-digit' });
+        return `<div class="lb-row">
+          <span class="lb-rank">${medals[i] || (i+1) + '.'}</span>
+          <span class="lb-time">${r.time}s</span>
+          <span class="lb-date">${dateStr}</span>
+        </div>`;
+      }).join('');
+      return `<div class="lb-scenario ${sc.epic?'lb-epic':''}">
+        <h4>${sc.epic ? '👑' : '🎫'} ${scenarioDisplayName(sc)}</h4>
+        <div class="lb-rows">${rows}</div>
+      </div>`;
+    }).join('');
+  }
+  showView('view-leaderboard');
+}
 function showExplain(){
   const sc = SCENARIOS[state.scenarioId];
   document.getElementById('explain-tag').textContent = `🛡️ ANALYSE · ${sc.tag.split('·')[1] ? sc.tag.split('·')[1].trim() : sc.tag}`;

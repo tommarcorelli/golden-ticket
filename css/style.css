@@ -338,6 +338,27 @@ body::before{
   display:grid;grid-template-columns:1fr 1fr;gap:12px;
 }
 @media (max-width:640px){.glossary-grid{grid-template-columns:1fr;}}
+
+/* ---------- classement ---------- */
+.lb-intro{font-size:13px;color:var(--text-md);margin-bottom:22px;text-align:center;}
+.lb-empty{font-size:13px;color:var(--text-dim);text-align:center;padding:30px 10px;}
+.lb-grid{display:flex;flex-direction:column;gap:14px;}
+.lb-scenario{
+  background:var(--glass);border:1px solid var(--glass-border);border-radius:var(--radius-lg);
+  padding:16px 18px;
+}
+.lb-scenario.lb-epic{border-color:rgba(242,183,5,0.35);background:var(--grad-card);}
+.lb-scenario h4{font-family:var(--font-display);font-weight:700;font-size:13.5px;color:#fff;margin-bottom:10px;}
+.lb-rows{display:flex;flex-direction:column;gap:2px;}
+.lb-row{
+  display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:8px;
+  padding:5px 0;font-family:var(--font-mono);font-size:12px;
+  border-bottom:1px solid var(--glass-border);
+}
+.lb-row:last-child{border-bottom:none;}
+.lb-rank{color:var(--text-dim);}
+.lb-time{color:var(--gold-li);font-weight:700;}
+.lb-date{color:var(--text-dim);font-size:10.5px;}
 .gloss-card{
   border:1px solid var(--glass-border);
   border-radius:var(--radius);
@@ -404,7 +425,7 @@ body::before{
 .mc-stat{display:flex;flex-direction:column;align-items:center;gap:3px;}
 .mc-stat span{font-family:var(--font-display);font-weight:700;font-size:18px;color:var(--gold-li);}
 .mc-stat label{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;}
-.mc-actions{display:flex;justify-content:center;gap:12px;align-items:center;}
+.mc-actions{display:flex;justify-content:center;gap:12px;align-items:center;flex-wrap:wrap;row-gap:10px;}
 
 /* ---------- bannière chapitre final ---------- */
 .epic-banner-wrap{max-width:920px;margin:0 auto;padding:0 24px 100px;}
