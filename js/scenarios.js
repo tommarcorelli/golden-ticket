@@ -35,12 +35,24 @@ SCENARIOS.kerberoast = {
   ],
 
   hints:[
-    "Commence par lister les comptes du domaine : `net user /domain`",
-    "Un des comptes ressemble à un compte de service (préfixe svc_). Regarde ses détails avec `net user svc_backup /domain`, ou liste directement les comptes vulnérables avec `get-domainuser -spn`.",
-    "Une fois le compte identifié, demande son ticket Kerberos avec `invoke-kerberoast -identity svc_backup`",
-    "Le ticket obtenu est un hash. Essaie de le cracker avec `crack <hash>`",
-    "Une fois le mot de passe en clair, ouvre une session avec `runas /user:svc_backup cmd`",
-    "Le compte svc_backup appartient au groupe Backup Operators, qui peut lire n'importe quel fichier. Regarde le bureau de l'administrateur avec `dir` puis `type flag.txt`."
+    ["Tu ne connais encore personne dans ce domaine. Commence par voir qui y est.",
+     "Il existe une commande pour lister tous les comptes du domaine — cherche du côté de `net user`.",
+     "Commence par lister les comptes du domaine : `net user /domain`"],
+    ["Un des comptes du domaine n'est pas un vrai humain : c'est un compte de service. Ça se voit à son nom.",
+     "Regarde les détails du compte qui commence par svc_, ou cherche une commande qui liste directement les comptes avec un SPN.",
+     "Un des comptes ressemble à un compte de service (préfixe svc_). Regarde ses détails avec `net user svc_backup /domain`, ou liste directement les comptes vulnérables avec `get-domainuser -spn`."],
+    ["Tout compte avec un SPN peut se voir demander un ticket Kerberos, même par un utilisateur standard comme toi.",
+     "Il existe une commande pour réclamer ce ticket — cherche du côté de `invoke-kerberoast`.",
+     "Une fois le compte identifié, demande son ticket Kerberos avec `invoke-kerberoast -identity svc_backup`"],
+    ["Le ticket que tu as obtenu est chiffré avec le mot de passe du compte. Rien ne t'empêche d'essayer de le casser hors-ligne.",
+     "Il existe une commande `crack` qui prend ce hash en argument.",
+     "Le ticket obtenu est un hash. Essaie de le cracker avec `crack <hash>`"],
+    ["Tu connais maintenant un mot de passe en clair. Rien ne t'empêche de t'en servir.",
+     "Il existe une commande Windows pour ouvrir une session avec une identité qui n'est pas la tienne.",
+     "Une fois le mot de passe en clair, ouvre une session avec `runas /user:svc_backup cmd`"],
+    ["Le compte que tu contrôles appartient à un groupe qui a des droits particuliers sur les fichiers.",
+     "Ce groupe peut lire n'importe quel fichier, y compris ceux d'un autre bureau. Regarde ce qu'il y a sur celui de l'administrateur.",
+     "Le compte svc_backup appartient au groupe Backup Operators, qui peut lire n'importe quel fichier. Regarde le bureau de l'administrateur avec `dir` puis `type flag.txt`."]
   ],
 
   manPages:{
@@ -277,14 +289,30 @@ SCENARIOS.goldenticket = {
   ],
 
   hints:[
-    "Commence comme au chapitre 1 : `net user /domain`, puis `get-domainuser -spn`",
-    "Demande le ticket du compte de service, puis casse-le : `invoke-kerberoast -identity svc_backup` puis `crack <hash>`",
-    "Ouvre une session avec ce compte : `runas /user:svc_backup cmd`",
-    "En tant que svc_backup, regarde qui a des droits sur les comptes à privilège : `get-objectacl h.morel`",
-    "Réinitialise le mot de passe grâce à ce droit oublié, puis connecte-toi : `set-domainuserpassword -identity h.morel -newpassword <ton_choix>` puis `runas /user:h.morel cmd`",
-    "Tu es Domain Admin. Extrais la clé qui signe tous les tickets du domaine : `mimikatz lsadump::dcsync /user:krbtgt`",
-    "Utilise cette clé pour forger un ticket illimité : `mimikatz kerberos::golden /user:Administrator /id:500 /krbtgt:<hash>`",
-    "Le domaine est à toi. `dir` puis `type flag.txt` sur DC01."
+    ["Comme au premier scénario, commence par identifier ce qui traîne dans le domaine.",
+     "Cherche un compte de service qui a un SPN.",
+     "Commence comme au chapitre 1 : `net user /domain`, puis `get-domainuser -spn`"],
+    ["Ce compte de service a un ticket que tu peux réclamer, puis casser hors-ligne.",
+     "Utilise `invoke-kerberoast`, puis `crack` sur le résultat.",
+     "Demande le ticket du compte de service, puis casse-le : `invoke-kerberoast -identity svc_backup` puis `crack <hash>`"],
+    ["Tu as maintenant un mot de passe en clair pour ce compte de service.",
+     "Ouvre une session avec ce compte.",
+     "Ouvre une session avec ce compte : `runas /user:svc_backup cmd`"],
+    ["En tant que compte de service, regarde si quelqu'un t'a donné, par erreur, des droits sur un compte plus puissant.",
+     "Il existe une commande pour lister les droits sur un compte cible — essaie-la sur un admin du domaine.",
+     "En tant que svc_backup, regarde qui a des droits sur les comptes à privilège : `get-objectacl h.morel`"],
+    ["Ce droit oublié te permet de littéralement changer le mot de passe d'un compte Domain Admin.",
+     "Réinitialise ce mot de passe, puis connecte-toi avec.",
+     "Réinitialise le mot de passe grâce à ce droit oublié, puis connecte-toi : `set-domainuserpassword -identity h.morel -newpassword <ton_choix>` puis `runas /user:h.morel cmd`"],
+    ["Tu es maintenant Domain Admin. Il existe un compte spécial dont la clé chiffre absolument tous les tickets Kerberos du domaine.",
+     "Ce compte s'appelle krbtgt — essaie d'en extraire le hash.",
+     "Tu es Domain Admin. Extrais la clé qui signe tous les tickets du domaine : `mimikatz lsadump::dcsync /user:krbtgt`"],
+    ["Avec la clé krbtgt en main, tu peux fabriquer des tickets Kerberos entièrement faux, pour n'importe quelle identité.",
+     "Il existe une commande pour forger un ticket 'golden' à partir de ce hash.",
+     "Utilise cette clé pour forger un ticket illimité : `mimikatz kerberos::golden /user:Administrator /id:500 /krbtgt:<hash>`"],
+    ["Le domaine entier t'appartient maintenant.",
+     "Regarde ce qu'il y a sur DC01.",
+     "Le domaine est à toi. `dir` puis `type flag.txt` sur DC01."]
   ],
 
   manPages:{
@@ -597,11 +625,21 @@ SCENARIOS.acl = {
   ],
 
   hints:[
-    "Commence par voir qui est qui dans le domaine : `net user /domain`",
-    "h.morel a l'air intéressant (Domain Admin). Regarde qui a des droits sur son compte : `get-objectacl h.morel`",
-    "Un compte qui ne devrait pas avoir de droits ici en a pourtant (GenericAll). Ce droit permet de tout changer sur le compte cible — y compris son mot de passe : `set-domainuserpassword -identity h.morel -newpassword <ton_choix>`",
-    "Une fois le mot de passe réinitialisé, connecte-toi : `runas /user:h.morel cmd`",
-    "Tu es maintenant Domain Admin. Regarde ton propre bureau avec `dir` puis `type flag.txt`"
+    ["Avant de chercher une faille, il faut savoir qui sont les comptes puissants de ce domaine.",
+     "Liste les comptes et repère celui qui appartient au groupe Domain Admins.",
+     "Commence par voir qui est qui dans le domaine : `net user /domain`"],
+    ["Les permissions sur un compte ne sont pas toujours celles qu'on croit — quelqu'un a peut-être oublié d'en retirer une.",
+     "Il existe une commande pour lister les droits accordés sur un compte cible. Essaie-la sur h.morel.",
+     "h.morel a l'air intéressant (Domain Admin). Regarde qui a des droits sur son compte : `get-objectacl h.morel`"],
+    ["Un droit très puissant, mal placé, permet de littéralement tout changer sur le compte visé — y compris son secret d'authentification.",
+     "Ce droit s'appelle GenericAll. Utilise-le pour définir un nouveau mot de passe sur le compte Domain Admin.",
+     "Un compte qui ne devrait pas avoir de droits ici en a pourtant (GenericAll). Ce droit permet de tout changer sur le compte cible — y compris son mot de passe : `set-domainuserpassword -identity h.morel -newpassword <ton_choix>`"],
+    ["Tu connais maintenant un mot de passe valide pour ce compte.",
+     "Il existe une commande Windows pour ouvrir une session avec cette identité.",
+     "Une fois le mot de passe réinitialisé, connecte-toi : `runas /user:h.morel cmd`"],
+    ["Tu es désormais Domain Admin.",
+     "Regarde ce qu'il y a sur ton propre bureau, maintenant que tu es h.morel.",
+     "Tu es maintenant Domain Admin. Regarde ton propre bureau avec `dir` puis `type flag.txt`"]
   ],
 
   manPages:{
@@ -801,10 +839,18 @@ SCENARIOS.pth = {
   ],
 
   hints:[
-    "Avant de chercher sur le réseau, regarde ce qui traîne en mémoire sur ce poste : `mimikatz sekurlsa::logonpasswords`",
-    "Tu as un hash NTLM d'un compte Administrateur *local*. Beaucoup d'entreprises réutilisent le même mot de passe admin local sur toutes leurs machines...",
-    "Utilise ce hash directement, sans le casser, pour ouvrir une session ailleurs : `pth /target:SRV-FILES01 /user:Administrator /hash:<hash>`",
-    "Une fois connecté à SRV-FILES01, regarde le bureau avec `dir` puis `type flag.txt`"
+    ["Avant de chercher ailleurs sur le réseau, regarde ce qui est déjà en mémoire sur cette machine.",
+     "Un outil connu peut extraire les identifiants en cache sur ce poste — cherche du côté de mimikatz.",
+     "Avant de chercher sur le réseau, regarde ce qui traîne en mémoire sur ce poste : `mimikatz sekurlsa::logonpasswords`"],
+    ["Le hash NTLM que tu as obtenu appartient à un compte administrateur *local*. Ce genre de compte est souvent partagé entre plusieurs machines.",
+     "Ce hash ne sert pas seulement à s'authentifier sur ce poste-ci — il peut aussi ouvrir d'autres portes du réseau.",
+     "Tu as un hash NTLM d'un compte Administrateur local. Beaucoup d'entreprises réutilisent le même mot de passe admin local sur toutes leurs machines..."],
+    ["Tu as un hash valide et une machine cible identifiée. Inutile de le casser d'abord.",
+     "Il existe une commande `pth` qui accepte un hash directement, sans mot de passe en clair.",
+     "Utilise ce hash directement, sans le casser, pour ouvrir une session ailleurs : `pth /target:SRV-FILES01 /user:Administrator /hash:<hash>`"],
+    ["Tu es maintenant connecté sur SRV-FILES01.",
+     "Regarde ce qu'il y a sur son bureau.",
+     "Une fois connecté à SRV-FILES01, regarde le bureau avec `dir` puis `type flag.txt`"]
   ],
 
   manPages:{

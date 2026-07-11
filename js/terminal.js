@@ -3,7 +3,7 @@
 // Les données/commandes spécifiques vivent dans scenarios.js (SCENARIOS).
 // ═══════════════════════════════════════════════════════════
 
-let state = { scenarioId:'kerberoast', user:null, objDone:{}, extra:{} };
+let state = { scenarioId:'kerberoast', user:null, objDone:{}, extra:{}, hintLevel:{} };
 let cmdHistory = [];
 let historyIndex = -1;
 let missionStart = null;
@@ -51,15 +51,37 @@ function renderObjectives(){
   }).join('');
 }
 function complete(id){
-  if(!state.objDone[id]){ state.objDone[id] = true; renderObjectives(); }
+  if(!state.objDone[id]){
+    state.objDone[id] = true;
+    renderObjectives();
+    const t = document.getElementById('hint-text');
+    const dotsEl = document.getElementById('hint-dots');
+    const btn = document.getElementById('hint-btn');
+    if(t) t.style.display = 'none';
+    if(dotsEl) dotsEl.innerHTML = '';
+    if(btn) btn.textContent = '💡 Indice';
+  }
 }
 function showHint(){
   const sc = currentScenario();
   const t = document.getElementById('hint-text');
-  const idx = Object.values(state.objDone).filter(Boolean).length;
+  const stageIdx = Math.min(Object.values(state.objDone).filter(Boolean).length, sc.hints.length - 1);
+  const tiers = sc.hints[stageIdx];
+  const level = state.hintLevel[stageIdx] || 0;
   hintsUsed++;
-  t.textContent = sc.hints[Math.min(idx, sc.hints.length - 1)];
+  t.textContent = tiers[level];
   t.style.display = 'block';
+  const dotsEl = document.getElementById('hint-dots');
+  if(dotsEl){
+    dotsEl.innerHTML = tiers.map((_,i) => `<span class="${i<=level?'on':''}"></span>`).join('');
+  }
+  const btn = document.getElementById('hint-btn');
+  if(level < tiers.length - 1){
+    state.hintLevel[stageIdx] = level + 1;
+    if(btn) btn.textContent = '💡 Indice plus précis';
+  } else if(btn){
+    btn.textContent = '💡 Indice';
+  }
 }
 
 function bootTerminal(scenarioId){
@@ -68,6 +90,7 @@ function bootTerminal(scenarioId){
   screen().innerHTML = '';
   state.user = sc.startUser;
   state.objDone = {};
+  state.hintLevel = {};
   state.extra = sc.initState ? sc.initState() : {};
   cmdHistory = [];
   historyIndex = -1;
@@ -81,6 +104,8 @@ function bootTerminal(scenarioId){
   document.getElementById('game-tag').textContent = sc.tag;
   document.getElementById('cmd-ref-list').innerHTML = sc.cmdRefHtml;
   document.getElementById('hint-text').style.display = 'none';
+  const hintDots = document.getElementById('hint-dots'); if(hintDots) hintDots.innerHTML = '';
+  const hintBtn = document.getElementById('hint-btn'); if(hintBtn) hintBtn.textContent = '💡 Indice';
   renderObjectives();
   updatePrompt();
   sc.introLines.forEach(line => print(line));

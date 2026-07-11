@@ -21,7 +21,7 @@ Statut au 11 juillet 2026 : **3 scénarios + 1 chapitre final épique** (Kerbero
 
 - [x] Écran de fin de mission dédié (récap visuel de la chaîne d'attaque, pas juste du texte terminal)
 - [x] Glossaire AD consultable hors mission (SPN, ACL, Kerberos, Domain Admin, GPO...)
-- [ ] Système d'indices à paliers plus progressif (vague → quasi-solution)
+- [x] Système d'indices à paliers plus progressif (vague → quasi-solution)
 - [x] Page "Explication complète" après le flag : comment se protéger en vrai (gMSA, rotation de mot de passe...)
 - [ ] Mode "chrono" avec classement des meilleurs temps (au-delà du simple record personnel affiché sur l'accueil)
 - [x] Responsive mobile propre
@@ -52,4 +52,5 @@ Statut au 11 juillet 2026 : **3 scénarios + 1 chapitre final épique** (Kerbero
 5. ~~Scénario 03 (Abus d'ACL)~~ ✅
 6. ~~Chapitre final (enchaînement des 3 techniques)~~ ✅
 7. ~~Peaufinage : progression persistante, responsive mobile, écran de fin dédié, page d'explication post-flag~~ ✅
-8. **Prochaine étape suggérée** : système d'indices à paliers (un indice vague, puis un plus précis, puis quasi-solution) et/ou mode "libre" avec plusieurs chemins d'attaque valides dans un domaine plus grand — les deux derniers gros chantiers de contenu/gameplay restants.
+8. ~~Système d'indices à paliers progressifs~~ ✅
+9. **Prochaine étape suggérée** : mode "chrono" avec classement des meilleurs temps (au-delà du record personnel déjà affiché), puis le mode "libre" à chemins multiples — le seul gros chantier de contenu/gameplay restant.
