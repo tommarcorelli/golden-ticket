@@ -56,9 +56,12 @@ function complete(id){
 function showHint(){
   const sc = currentScenario();
   const t = document.getElementById('hint-text');
-  const idx = Object.values(state.objDone).filter(Boolean).length;
+  const idx = Math.min(Object.values(state.objDone).filter(Boolean).length, sc.hints.length - 1);
   hintsUsed++;
-  t.textContent = sc.hints[Math.min(idx, sc.hints.length - 1)];
+  const tiers = sc.hints[idx];
+  const level = Math.min((state.hintLevel[idx] || 0) + 1, tiers.length);
+  state.hintLevel[idx] = level;
+  t.textContent = tiers.length > 1 ? `[${level}/${tiers.length}] ${tiers[level - 1]}` : tiers[level - 1];
   t.style.display = 'block';
 }
 
@@ -68,6 +71,7 @@ function bootTerminal(scenarioId){
   screen().innerHTML = '';
   state.user = sc.startUser;
   state.objDone = {};
+  state.hintLevel = {};
   state.extra = sc.initState ? sc.initState() : {};
   cmdHistory = [];
   historyIndex = -1;

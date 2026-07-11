@@ -14,18 +14,44 @@ function showView(id){
 
 let lessonScenarioId = 'kerberoast';
 let currentSlide = 0;
-const completedScenarios = {};
 
-function markScenarioComplete(scenarioId){
-  completedScenarios[scenarioId] = true;
+const STORAGE_KEY = 'golden-ticket-progress-v1';
+let completedScenarios = {};
+let bestTimes = {};
+
+function loadProgress(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return;
+    const data = JSON.parse(raw);
+    completedScenarios = data.completedScenarios || {};
+    bestTimes = data.bestTimes || {};
+  }catch(e){ /* localStorage indisponible (navigation privée, etc.) — on continue sans persistance */ }
+}
+function saveProgress(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ completedScenarios, bestTimes }));
+  }catch(e){ /* stockage plein ou indisponible — la session continue quand même */ }
+}
+function resetProgress(){
+  if(!confirm('Effacer toute la progression sauvegardée (scénarios complétés et meilleurs temps) ?')) return;
+  completedScenarios = {};
+  bestTimes = {};
+  try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
   updateHomeBadges();
 }
 
-const bestTimes = {};
+function markScenarioComplete(scenarioId){
+  completedScenarios[scenarioId] = true;
+  saveProgress();
+  updateHomeBadges();
+}
+
 function recordBestTime(scenarioId, elapsed){
   if(!bestTimes[scenarioId] || elapsed < bestTimes[scenarioId]){
     bestTimes[scenarioId] = elapsed;
   }
+  saveProgress();
   updateHomeBadges();
 }
 
@@ -45,7 +71,8 @@ function updateHomeBadges(){
   const done = ids.filter(id => completedScenarios[id]).length;
   const track = document.getElementById('progress-track');
   if(track){
-    track.innerHTML = `<span class="pt-fill">${done}</span> / ${ids.length} scénario${ids.length>1?'s':''} complété${done>1?'s':''} cette session`;
+    track.innerHTML = `<span class="pt-fill">${done}</span> / ${ids.length} scénario${ids.length>1?'s':''} complété${done>1?'s':''}` +
+      (done > 0 ? ` <button class="progress-reset" onclick="resetProgress()" title="Réinitialiser la progression">↺ réinitialiser</button>` : '');
   }
 }
 
@@ -115,6 +142,7 @@ function showExplain(){
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  loadProgress();
   initTerminalInput();
   updateHomeBadges();
 });

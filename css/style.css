@@ -131,6 +131,7 @@ body::before{
   font-family:var(--font-mono);font-size:12.5px;color:var(--text-dim);
   max-width:640px;margin-left:auto;margin-right:auto;
   box-shadow:0 20px 60px rgba(0,0,0,0.4);
+  white-space:pre-line;line-height:1.8;
 }
 .hero-panel .l1{color:var(--text);}
 .hero-panel .l2{color:var(--amber);}
@@ -240,11 +241,11 @@ body::before{
 }
 
 .input-row{
-  display:flex;align-items:center;padding:0 19px 19px 19px;
+  display:flex;flex-wrap:wrap;align-items:center;padding:0 19px 19px 19px;
   font-family:var(--font-mono);font-size:13px;gap:8px;
 }
 #prompt-label{color:var(--gold-li);white-space:nowrap;}
-#cmd-input{flex:1;background:transparent;border:none;outline:none;color:#fff;font-family:inherit;font-size:inherit;}
+#cmd-input{flex:1;min-width:120px;background:transparent;border:none;outline:none;color:#fff;font-family:inherit;font-size:inherit;}
 
 .side{display:flex;flex-direction:column;gap:14px;}
 .card{
@@ -398,7 +399,7 @@ body::before{
 .mc-stat{display:flex;flex-direction:column;align-items:center;gap:3px;}
 .mc-stat span{font-family:var(--font-display);font-weight:700;font-size:18px;color:var(--gold-li);}
 .mc-stat label{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;}
-.mc-actions{display:flex;justify-content:center;gap:12px;align-items:center;}
+.mc-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;align-items:center;}
 
 /* ---------- bannière chapitre final ---------- */
 .epic-banner-wrap{max-width:920px;margin:0 auto;padding:0 24px 100px;}
@@ -515,6 +516,12 @@ body::before{
   color:var(--text-dim);
 }
 .progress-track .pt-fill{color:var(--gold-li);}
+.progress-reset{
+  background:none;border:none;cursor:pointer;
+  font-family:var(--font-mono);font-size:10.5px;color:var(--text-dim);
+  text-decoration:underline;margin-left:8px;padding:0;
+}
+.progress-reset:hover{color:var(--text-md);}
 
 /* ---------- responsive mobile ---------- */
 @media (max-width:640px){
@@ -523,15 +530,19 @@ body::before{
   .hero h1{font-size:34px;letter-spacing:-1px;}
   .hero p.lead{font-size:14px;}
   .eyebrow{font-size:10.5px;padding:5px 12px;}
-  .hero-panel{padding:16px;font-size:11px;margin-top:40px;}
+  .hero-panel{padding:16px;font-size:10.5px;margin-top:40px;}
   .game-shell{padding:18px 14px 40px;}
   .game-header{flex-wrap:wrap;gap:8px;}
   .scenario-tag{order:3;width:100%;text-align:center;}
   #screen{height:360px;font-size:12px;}
+  .input-row{font-size:12px;}
+  #prompt-label{font-size:11.5px;}
   .mc-card{padding:26px 18px;}
   .mc-chain{gap:2px;}
   .mc-step{width:48px;font-size:15px;}
   .mc-stats{gap:16px;}
+  .mc-actions{gap:8px;}
+  .mc-actions .cta-sm{width:100%;order:-1;}
   .lesson-shell{padding:20px 14px 40px;}
   .slide{padding:26px 20px;min-height:auto;}
   .slide h2{font-size:18px;}
