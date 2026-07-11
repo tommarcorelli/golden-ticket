@@ -64,6 +64,7 @@ function complete(id){
   }
 }
 function showHint(){
+  if(state.expertMode) return;
   const sc = currentScenario();
   const t = document.getElementById('hint-text');
   const stageIdx = Math.min(Object.values(state.objDone).filter(Boolean).length, sc.hints.length - 1);
@@ -93,6 +94,7 @@ function bootTerminal(scenarioId){
   state.objDone = {};
   state.hintLevel = {};
   state.extra = sc.initState ? sc.initState() : {};
+  state.expertMode = (typeof expertMode !== 'undefined') ? expertMode : false;
   cmdHistory = [];
   historyIndex = -1;
   missionStart = Date.now();
@@ -104,16 +106,48 @@ function bootTerminal(scenarioId){
   document.getElementById('mission-complete')?.classList.remove('epic');
   const achHost = document.getElementById('mc-achievements'); if(achHost) achHost.innerHTML = '';
   const ch = document.getElementById('confetti-host'); if(ch) ch.innerHTML = '';
-  document.getElementById('game-tag').textContent = sc.tag;
+  document.getElementById('game-tag').textContent = sc.tag + (state.expertMode ? '  🎓' : '');
   document.getElementById('cmd-ref-list').innerHTML = sc.cmdRefHtml;
   document.getElementById('hint-text').style.display = 'none';
   const hintDots = document.getElementById('hint-dots'); if(hintDots) hintDots.innerHTML = '';
-  const hintBtn = document.getElementById('hint-btn'); if(hintBtn) hintBtn.textContent = '💡 Indice';
+  const hintBtn = document.getElementById('hint-btn');
+  if(hintBtn){
+    if(state.expertMode){
+      hintBtn.textContent = '🚫 Indices désactivés (Mode Expert)';
+      hintBtn.disabled = true;
+      hintBtn.classList.add('disabled');
+    } else {
+      hintBtn.textContent = '💡 Indice';
+      hintBtn.disabled = false;
+      hintBtn.classList.remove('disabled');
+    }
+  }
+  stopMissionTimer();
+  const timerEl = document.getElementById('mission-timer');
+  if(timerEl) timerEl.style.display = state.expertMode ? 'inline-block' : 'none';
+  if(state.expertMode) startMissionTimer();
   renderObjectives();
   updatePrompt();
   sc.introLines.forEach(line => print(line));
   print('');
   document.getElementById('cmd-input').focus();
+}
+
+let missionTimerInterval = null;
+function startMissionTimer(){
+  const timerEl = document.getElementById('mission-timer');
+  if(!timerEl) return;
+  const tick = () => {
+    const elapsed = Math.max(0, Math.round((Date.now() - missionStart) / 1000));
+    const mm = Math.floor(elapsed / 60);
+    const ss = String(elapsed % 60).padStart(2,'0');
+    timerEl.textContent = `⏱ ${mm}:${ss}`;
+  };
+  tick();
+  missionTimerInterval = setInterval(tick, 1000);
+}
+function stopMissionTimer(){
+  if(missionTimerInterval){ clearInterval(missionTimerInterval); missionTimerInterval = null; }
 }
 
 function handle(raw){
@@ -180,11 +214,12 @@ function vibrate(pattern){
 }
 
 function finishMission(){
+  stopMissionTimer();
   if(typeof markScenarioComplete === 'function') markScenarioComplete(state.scenarioId);
   playVictorySound();
   const sc = currentScenario();
   const elapsed = Math.max(1, Math.round((Date.now() - missionStart) / 1000));
-  if(typeof recordBestTime === 'function') recordBestTime(state.scenarioId, elapsed);
+  if(typeof recordBestTime === 'function') recordBestTime(state.scenarioId, elapsed, state.expertMode);
   let newAchievements = [];
   if(typeof unlockAchievements === 'function'){
     newAchievements = unlockAchievements({

@@ -16,6 +16,24 @@ function showView(id){
 let lessonScenarioId = 'kerberoast';
 let currentSlide = 0;
 
+// ---------- mode expert (préférence simple, séparée de la progression) ----------
+const EXPERT_KEY = 'goldenticket_expert_mode';
+let expertMode = false;
+try{ expertMode = localStorage.getItem(EXPERT_KEY) === '1'; }catch(e){ expertMode = false; }
+
+function toggleExpertMode(){
+  expertMode = !expertMode;
+  try{ localStorage.setItem(EXPERT_KEY, expertMode ? '1' : '0'); }catch(e){ /* tant pis */ }
+  renderExpertToggle();
+}
+
+function renderExpertToggle(){
+  const btn = document.getElementById('expert-toggle');
+  const sw = document.getElementById('expert-switch');
+  if(btn){ btn.classList.toggle('on', expertMode); }
+  if(sw){ sw.setAttribute('aria-checked', expertMode ? 'true' : 'false'); }
+}
+
 // ---------- progression persistante (localStorage) ----------
 const PROGRESS_KEY = 'goldenticket_progress_v1';
 
@@ -46,8 +64,12 @@ function saveProgress(){
 
 function pruneOrphanIds(obj){
   // évite qu'un id de scénario renommé/supprimé reste coincé en localStorage
+  // (gère aussi les clés suffixées "id__expert" du mode expert)
   const validIds = Object.keys(SCENARIOS);
-  Object.keys(obj).forEach(id => { if(!validIds.includes(id)) delete obj[id]; });
+  Object.keys(obj).forEach(id => {
+    const baseId = id.endsWith('__expert') ? id.slice(0, -'__expert'.length) : id;
+    if(!validIds.includes(baseId)) delete obj[id];
+  });
   return obj;
 }
 
@@ -65,14 +87,15 @@ function markScenarioComplete(scenarioId){
   updateHomeBadges();
 }
 
-function recordBestTime(scenarioId, elapsed){
-  if(!bestTimes[scenarioId] || elapsed < bestTimes[scenarioId]){
-    bestTimes[scenarioId] = elapsed;
+function recordBestTime(scenarioId, elapsed, isExpert){
+  const key = isExpert ? scenarioId + '__expert' : scenarioId;
+  if(!bestTimes[key] || elapsed < bestTimes[key]){
+    bestTimes[key] = elapsed;
   }
-  if(!runHistory[scenarioId]) runHistory[scenarioId] = [];
-  runHistory[scenarioId].push({ time: elapsed, date: new Date().toISOString() });
-  runHistory[scenarioId].sort((a,b) => a.time - b.time);
-  runHistory[scenarioId] = runHistory[scenarioId].slice(0, RUN_HISTORY_MAX);
+  if(!runHistory[key]) runHistory[key] = [];
+  runHistory[key].push({ time: elapsed, date: new Date().toISOString() });
+  runHistory[key].sort((a,b) => a.time - b.time);
+  runHistory[key] = runHistory[key].slice(0, RUN_HISTORY_MAX);
   saveProgress();
   updateHomeBadges();
 }
@@ -260,6 +283,7 @@ function startScenario(scenarioId){
 }
 
 function backHome(){
+  if(typeof stopMissionTimer === 'function') stopMissionTimer();
   showView('view-home');
   updateHomeBadges();
 }
@@ -269,18 +293,29 @@ function scenarioDisplayName(sc){
   return parts[1] ? parts[1].trim() : sc.tag;
 }
 
-function showLeaderboard(){
-  renderAchievementsGrid();
+let lbMode = 'normal';
+function setLeaderboardMode(mode){
+  lbMode = mode;
+  document.querySelectorAll('#lb-tabs .lb-tab').forEach(t => t.classList.remove('active'));
+  const idx = mode === 'expert' ? 1 : 0;
+  document.querySelectorAll('#lb-tabs .lb-tab')[idx]?.classList.add('active');
+  renderLeaderboardBody();
+}
+
+function renderLeaderboardBody(){
   const ids = Object.keys(SCENARIOS);
   const host = document.getElementById('leaderboard-body');
-  const totalRuns = ids.reduce((n, id) => n + (runHistory[id] ? runHistory[id].length : 0), 0);
+  const suffix = lbMode === 'expert' ? '__expert' : '';
+  const totalRuns = ids.reduce((n, id) => n + (runHistory[id+suffix] ? runHistory[id+suffix].length : 0), 0);
 
   if(totalRuns === 0){
-    host.innerHTML = `<p class="lb-empty">Aucune mission terminée pour l'instant. Termine un scénario pour apparaître ici — tes 5 meilleurs temps par scénario sont conservés.</p>`;
+    host.innerHTML = lbMode === 'expert'
+      ? `<p class="lb-empty">Aucune run en Mode Expert pour l'instant. Active-le sur l'accueil, puis termine une mission pour apparaître ici.</p>`
+      : `<p class="lb-empty">Aucune mission terminée pour l'instant. Termine un scénario pour apparaître ici — tes 5 meilleurs temps par scénario sont conservés.</p>`;
   } else {
     host.innerHTML = ids.map(id => {
       const sc = SCENARIOS[id];
-      const runs = runHistory[id] || [];
+      const runs = runHistory[id+suffix] || [];
       if(runs.length === 0) return '';
       const medals = ['🥇','🥈','🥉'];
       const rows = runs.map((r,i) => {
@@ -298,6 +333,13 @@ function showLeaderboard(){
       </div>`;
     }).join('');
   }
+}
+
+function showLeaderboard(){
+  renderAchievementsGrid();
+  lbMode = 'normal';
+  document.querySelectorAll('#lb-tabs .lb-tab').forEach((t,i) => t.classList.toggle('active', i===0));
+  renderLeaderboardBody();
   showView('view-leaderboard');
 }
 function showExplain(){
@@ -312,4 +354,5 @@ function showExplain(){
 document.addEventListener('DOMContentLoaded', () => {
   initTerminalInput();
   updateHomeBadges();
+  renderExpertToggle();
 });

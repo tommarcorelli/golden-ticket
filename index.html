@@ -33,6 +33,11 @@
       <input type="file" id="import-file-input" accept="application/json" style="display:none;" onchange="importProgress(this.files[0])">
     </div>
 
+    <button class="expert-toggle" id="expert-toggle" onclick="toggleExpertMode()">
+      <span class="expert-switch" id="expert-switch"></span>
+      <span class="expert-label">🎓 Mode Expert <span class="expert-desc">— indices désactivés, chrono visible, classement à part</span></span>
+    </button>
+
     <div class="hero-panel">
 <span class="l1">C:\&gt; whoami /priv</span>
 Utilisateur : CORP\j.dupont
@@ -164,6 +169,10 @@ Ticket obtenu. Prêt à cracker.</div>
     </div>
     <p class="lb-intro">Tes 5 meilleurs temps par scénario, gardés en mémoire sur cet appareil.</p>
     <div id="achievements-grid" class="ach-grid"></div>
+    <div class="lb-tabs" id="lb-tabs">
+      <button class="lb-tab active" onclick="setLeaderboardMode('normal')">Normal</button>
+      <button class="lb-tab" onclick="setLeaderboardMode('expert')">🎓 Expert</button>
+    </div>
     <div id="leaderboard-body" class="lb-grid"></div>
   </div>
 </section>
@@ -190,6 +199,7 @@ Ticket obtenu. Prêt à cracker.</div>
     <div class="game-header">
       <button class="back-link" onclick="backHome()">← Retour</button>
       <div class="scenario-tag" id="game-tag">🎫 SCÉNARIO 01 · KERBEROASTING</div>
+      <div id="mission-timer" class="mission-timer" style="display:none;">⏱ 0:00</div>
       <button class="back-link" onclick="bootTerminal()">↺ Recommencer</button>
     </div>
 
