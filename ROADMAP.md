@@ -76,7 +76,7 @@ Idées non validées, à piocher selon l'envie. Pas d'ordre de priorité — c'e
 ### 🟡 Moyennes (une session)
 - [x] Mode "Expert" : indices désactivés, chrono plus visible pendant la mission (pas juste au récap), classement séparé de celui du mode normal
 - [x] Certificat de fin (image téléchargeable) après le Chapitre Final — sympa pour un contexte formation/sensibilisation en entreprise
-- [ ] PWA installable (manifest + service worker) : le jeu s'installe et fonctionne hors-ligne sur mobile/desktop
+- [x] PWA installable (manifest + service worker) : le jeu s'installe et fonctionne hors-ligne sur mobile/desktop — ⚠️ le service worker ne s'enregistre que servi en HTTPS (ou `localhost` en local) ; ouvrir `index.html` directement en `file://` ne l'active pas, mais le jeu reste jouable normalement
 - [ ] Étendre le mode libre à 3-4 chemins d'attaque au lieu de 2, avec un compte supplémentaire "piège" plus subtil (ACL qui semble exploitable mais mène à une impasse)
 - [ ] Accessibilité clavier complète + support lecteur d'écran sur les écrans hors-terminal (accueil, glossaire, indices)
 
