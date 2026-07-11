@@ -424,3 +424,9 @@ document.addEventListener('DOMContentLoaded', () => {
   updateHomeBadges();
   renderExpertToggle();
 });
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* pas grave, le jeu marche sans */ });
+  });
+}

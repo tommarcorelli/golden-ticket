@@ -1,0 +1,17 @@
+{
+  "name": "Golden Ticket — Domain Breach Lab",
+  "short_name": "Golden Ticket",
+  "description": "Terminal Active Directory simulé — Kerberoasting, Pass-the-Hash, abus d'ACL et Golden Ticket, pour apprendre en attaquant.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0d0b17",
+  "theme_color": "#0d0b17",
+  "lang": "fr",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
