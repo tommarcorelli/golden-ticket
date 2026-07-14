@@ -51,6 +51,49 @@ function toggleLightMode(){
   applyTheme();
 }
 
+// ---------- konami code (easter egg global, marche sur tous les écrans) ----------
+const KONAMI_SEQUENCE = ['arrowup','arrowup','arrowdown','arrowdown','arrowleft','arrowright','arrowleft','arrowright','b','a'];
+let konamiProgress = 0;
+document.addEventListener('keydown', (e) => {
+  const key = e.key.toLowerCase();
+  if(key === KONAMI_SEQUENCE[konamiProgress]){
+    konamiProgress++;
+    if(konamiProgress === KONAMI_SEQUENCE.length){
+      konamiProgress = 0;
+      triggerKonamiEasterEgg();
+    }
+  } else {
+    konamiProgress = (key === KONAMI_SEQUENCE[0]) ? 1 : 0;
+  }
+});
+
+function triggerKonamiEasterEgg(){
+  const host = document.createElement('div');
+  host.className = 'konami-host';
+  document.body.appendChild(host);
+  const pieces = ['🎫','👑','✨','🔑','🏆'];
+  for(let i=0;i<50;i++){
+    const span = document.createElement('span');
+    span.className = 'confetti-piece';
+    span.textContent = pieces[i % pieces.length];
+    span.style.left = (Math.random()*100) + '%';
+    span.style.animationDelay = (Math.random()*0.8) + 's';
+    span.style.animationDuration = (2.4 + Math.random()*1.6) + 's';
+    span.style.fontSize = (14 + Math.random()*14) + 'px';
+    host.appendChild(span);
+  }
+  const toast = document.createElement('div');
+  toast.className = 'konami-toast';
+  toast.textContent = "🎮 Code secret trouvé. Pas de vies infinies ici, juste du style.";
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('show'));
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 400);
+  }, 3200);
+  setTimeout(() => host.remove(), 4200);
+}
+
 // ---------- progression persistante (localStorage) ----------
 const PROGRESS_KEY = 'goldenticket_progress_v1';
 
@@ -441,7 +484,25 @@ document.addEventListener('DOMContentLoaded', () => {
   updateHomeBadges();
   renderExpertToggle();
   applyTheme();
+  initLogoEasterEgg();
 });
+
+function initLogoEasterEgg(){
+  const brand = document.querySelector('.brand');
+  if(!brand) return;
+  let clicks = 0;
+  let resetTimer = null;
+  brand.style.cursor = 'pointer';
+  brand.addEventListener('click', () => {
+    clicks++;
+    clearTimeout(resetTimer);
+    resetTimer = setTimeout(() => { clicks = 0; }, 1200);
+    if(clicks >= 7){
+      clicks = 0;
+      triggerKonamiEasterEgg();
+    }
+  });
+}
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {

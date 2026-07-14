@@ -687,3 +687,21 @@ body::before{
   .slide h2{font-size:18px;}
   .cta{padding:13px 24px;font-size:13.5px;}
 }
+
+/* ---------- konami code (easter egg global) ---------- */
+.konami-host{
+  position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:9998;
+}
+.konami-toast{
+  position:fixed;left:50%;top:24px;transform:translate(-50%,-30px);
+  background:rgba(10,8,14,0.92);border:1px solid rgba(242,183,5,0.45);
+  color:var(--text);font-family:var(--font-mono);font-size:13px;
+  padding:12px 20px;border-radius:999px;z-index:9999;
+  box-shadow:0 12px 40px rgba(0,0,0,0.5), 0 0 40px rgba(242,183,5,0.2);
+  opacity:0;transition:opacity .35s ease, transform .35s ease;
+  pointer-events:none;white-space:nowrap;
+}
+.konami-toast.show{opacity:1;transform:translate(-50%,0);}
+@media (max-width:640px){
+  .konami-toast{font-size:11px;padding:10px 14px;white-space:normal;text-align:center;max-width:90vw;}
+}

@@ -188,6 +188,10 @@ function handle(raw){
   if(sc.handle(lower, cmd, m)) return;
 
   // easter eggs génériques
+  if(lower === 'sudo make me a sandwich' || lower === 'make me a sandwich'){
+    print(`<span class="out-good">🥪 Voilà.</span>`);
+    return;
+  }
   if(lower === 'sudo' || lower.startsWith('sudo ')){
     print(`<span class="out-bad">'sudo' n'existe pas sous Windows. Tu cherches sûrement <b>runas</b>.</span>`);
     return;
@@ -207,6 +211,14 @@ function handle(raw){
   if(lower === 'matrix'){
     print(`<span class="out-info">Wake up, Neo...</span>`);
     triggerMatrixRain();
+    return;
+  }
+  if(lower === 'iddqd'){
+    print(`<span class="out-bad">Pas de mode invincible ici — même Domain Admin peut se faire détecter.</span>`);
+    return;
+  }
+  if(lower === '42'){
+    print(`<span class="out-info">La réponse à la grande question... mais pas au mot de passe krbtgt.</span>`);
     return;
   }
 
