@@ -42,6 +42,25 @@
   --font-mono:'JetBrains Mono','Consolas',monospace;
 }
 
+/* ---------- mode clair ---------- */
+html.light-mode{
+  --bg:#f7f4ee;
+  --bg1:#f0ebe0;
+  --bg2:#eae3d4;
+
+  --glass:rgba(20,15,5,0.03);
+  --glass-md:rgba(20,15,5,0.05);
+  --glass-hi:rgba(20,15,5,0.08);
+  --glass-border:rgba(20,15,5,0.1);
+  --glass-border-hi:rgba(20,15,5,0.18);
+
+  --text:#241f16;
+  --text-md:#5c5140;
+  --text-dim:#8f8571;
+}
+html.light-mode body::before{ opacity:0.5; }
+html.light-mode .bg-grid{ opacity:0.4; }
+
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body);}
 
 /* ambient glow */

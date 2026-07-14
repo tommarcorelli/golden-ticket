@@ -34,6 +34,23 @@ function renderExpertToggle(){
   if(sw){ sw.setAttribute('aria-checked', expertMode ? 'true' : 'false'); }
 }
 
+// ---------- mode clair (préférence simple, séparée de la progression) ----------
+const THEME_KEY = 'goldenticket_light_mode';
+let lightMode = false;
+try{ lightMode = localStorage.getItem(THEME_KEY) === '1'; }catch(e){ lightMode = false; }
+
+function applyTheme(){
+  document.documentElement.classList.toggle('light-mode', lightMode);
+  const btn = document.getElementById('theme-toggle');
+  if(btn) btn.textContent = lightMode ? '☀️' : '🌙';
+}
+
+function toggleLightMode(){
+  lightMode = !lightMode;
+  try{ localStorage.setItem(THEME_KEY, lightMode ? '1' : '0'); }catch(e){ /* tant pis */ }
+  applyTheme();
+}
+
 // ---------- progression persistante (localStorage) ----------
 const PROGRESS_KEY = 'goldenticket_progress_v1';
 
@@ -423,6 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTerminalInput();
   updateHomeBadges();
   renderExpertToggle();
+  applyTheme();
 });
 
 if('serviceWorker' in navigator){

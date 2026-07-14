@@ -204,6 +204,11 @@ function handle(raw){
     print(`<span class="out-good">🏆 Facile à dire, difficile à devenir Domain Admin.</span>`);
     return;
   }
+  if(lower === 'matrix'){
+    print(`<span class="out-info">Wake up, Neo...</span>`);
+    triggerMatrixRain();
+    return;
+  }
 
   print(`<span class="out-bad">'${escapeHtml(cmd)}' n'est pas reconnu comme commande.</span>`);
   print(`<span class="out-dim">💡 Tape <b>help</b> pour la liste des commandes, ou <b>man &lt;commande&gt;</b> pour une explication.</span>`);
@@ -211,6 +216,44 @@ function handle(raw){
 
 function vibrate(pattern){
   try{ navigator.vibrate?.(pattern); }catch(e){ /* pas dispo, tant pis */ }
+}
+
+function triggerMatrixRain(){
+  const term = document.querySelector('.terminal');
+  if(!term || term.querySelector('.matrix-rain')) return;
+  const canvas = document.createElement('canvas');
+  canvas.className = 'matrix-rain';
+  canvas.style.cssText = 'position:absolute;inset:0;z-index:5;pointer-events:none;border-radius:inherit;';
+  if(getComputedStyle(term).position === 'static') term.style.position = 'relative';
+  term.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width = term.clientWidth;
+  const h = canvas.height = term.clientHeight;
+  const fontSize = 14;
+  const cols = Math.floor(w / fontSize);
+  const drops = new Array(cols).fill(0);
+  const chars = 'アイウエオカキクケコサシスセソ0123456789ABCDEF';
+  let frames = 0;
+  const maxFrames = 110; // ~4-5s à 24fps
+  const interval = setInterval(() => {
+    ctx.fillStyle = 'rgba(5,4,8,0.18)';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#35d399';
+    ctx.font = fontSize + 'px monospace';
+    drops.forEach((y, i) => {
+      const char = chars[Math.floor(Math.random() * chars.length)];
+      ctx.fillText(char, i * fontSize, y * fontSize);
+      if(y * fontSize > h && Math.random() > 0.975) drops[i] = 0;
+      else drops[i] = y + 1;
+    });
+    frames++;
+    if(frames >= maxFrames){
+      clearInterval(interval);
+      canvas.style.transition = 'opacity .6s ease';
+      canvas.style.opacity = '0';
+      setTimeout(() => canvas.remove(), 600);
+    }
+  }, 40);
 }
 
 function finishMission(){
