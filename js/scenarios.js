@@ -1016,7 +1016,13 @@ SCENARIOS.libre = {
                     spn:'HOST/legacy-app.corp.local',
                     hash:'tgs23_svc_legacy_9c0d1e2f',
                     crackedPassword:null },
-    't.nguyen':   { label:'CORP\\t.nguyen', priv:'Utilisateur standard', groups:['Domain Users','Helpdesk'], desc:'Employé — support niveau 2, membre du groupe Helpdesk' },
+    't.nguyen':   { label:'CORP\\t.nguyen', priv:'Utilisateur standard', groups:['Domain Users','Helpdesk','Comptabilité'], desc:'Employé — support niveau 2, membre du groupe Helpdesk' },
+    'svc_backup': { label:'CORP\\svc_backup', priv:'Compte de service', groups:['Domain Users','Server Admins'],
+                    desc:'Compte de service — sauvegardes nocturnes, ajouté par erreur au groupe Server Admins lors d\'une migration',
+                    spn:'HOST/backup01.corp.local',
+                    hash:'tgs23_svc_backup_3f4a5b6c',
+                    crackedPassword:'Backup2023!' },
+    'k.morel':    { label:'CORP\\k.morel', priv:'Utilisatrice standard', groups:['Domain Users','Marketing'], desc:'Employée — service marketing, gère les notes de frais' },
     'p.chevalier':{ label:'CORP\\p.chevalier', priv:'Administratrice du domaine', groups:['Domain Users','Domain Admins'], desc:'Directrice technique' }
   },
 
@@ -1029,9 +1035,14 @@ SCENARIOS.libre = {
       { principal:'CORP\\Domain Admins', rights:'Full Control', normal:true },
       { principal:'CORP\\svc_web', rights:'ForceChangePassword', normal:false }
     ],
+    'k.morel': [
+      { principal:'CORP\\Domain Admins', rights:'Full Control', normal:true },
+      { principal:'CORP\\Comptabilité (groupe)', rights:'GenericAll', normal:false, viaGroup:'Comptabilité' }
+    ],
     'p.chevalier': [
       { principal:'CORP\\Domain Admins', rights:'Full Control', normal:true },
-      { principal:'CORP\\Helpdesk (groupe)', rights:'GenericAll', normal:false, viaGroup:'Helpdesk' }
+      { principal:'CORP\\Helpdesk (groupe)', rights:'GenericAll', normal:false, viaGroup:'Helpdesk' },
+      { principal:'CORP\\Server Admins (groupe)', rights:'ForceChangePassword', normal:false, viaGroup:'Server Admins' }
     ]
   },
 
@@ -1053,9 +1064,9 @@ SCENARIOS.libre = {
     ["Tous les comptes de service n'ont pas forcément un mot de passe faible. Rien ne t'empêche d'en tester plusieurs avant de conclure.",
      "Demande le ticket de chacun avec `invoke-kerberoast`, puis tente de le casser avec `crack`. Au moins un cédera — pas forcément le premier essayé.",
      "Exemple : `invoke-kerberoast -identity svc_web` puis `crack <hash>` — si ça échoue, retente avec un autre compte de service."],
-    ["Une fois dans la peau d'un compte de service, deux types de pistes existent en général : des droits oubliés sur d'autres comptes, ou des identifiants qui traînent en mémoire sur le serveur où tourne ce service. Il y a plus d'une route valable jusqu'à un Domain Admin ici.",
-     "Si tu es sur le compte lié à l'appli web, regarde les droits (`get-objectacl`) sur d'autres comptes — y compris ceux accordés à un groupe entier. Si tu es sur le compte lié à la base SQL, regarde plutôt ce qui traîne en mémoire sur son serveur.",
-     "Deux chemins possibles : (A) `get-objectacl t.nguyen`, réinitialise son mot de passe, connecte-toi, puis regarde ses droits hérités via son groupe sur p.chevalier. (B) en tant que svc_sql, `mimikatz sekurlsa::logonpasswords` puis `pth /target:DC01 /user:p.chevalier /hash:<hash>`."],
+    ["Une fois dans la peau d'un compte de service, deux types de pistes existent en général : des droits oubliés sur d'autres comptes (parfois hérités d'un groupe entier, y compris un groupe où un compte n'a rien à faire), ou des identifiants qui traînent en mémoire sur le serveur où tourne ce service. Il y a plus d'une route valable jusqu'à un Domain Admin ici — et au moins une fausse piste à écarter.",
+     "Si tu es sur le compte lié à l'appli web, regarde les droits (`get-objectacl`) sur d'autres comptes — y compris ceux accordés à un groupe entier. Si tu es sur le compte lié à la base SQL, regarde plutôt ce qui traîne en mémoire sur son serveur. Si tu es sur le compte de sauvegarde, regarde directement de quel groupe il est membre.",
+     "Trois chemins possibles : (A) `get-objectacl t.nguyen`, réinitialise son mot de passe, connecte-toi, puis regarde ses droits hérités via son groupe sur p.chevalier. (B) en tant que svc_sql, `mimikatz sekurlsa::logonpasswords` puis `pth /target:DC01 /user:p.chevalier /hash:<hash>`. (C) en tant que svc_backup, `get-objectacl p.chevalier` directement — son appartenance erronée à Server Admins suffit. Attention : une ACL alléchante trouvée en chemin peut ne mener nulle part si elle porte sur un compte sans aucun privilège réel."],
     ["Une fois connecté avec les droits d'un compte Domain Admin, peu importe comment tu y es arrivé, la suite est la même.",
      "Regarde ce qu'il y a sur son bureau.",
      "`dir` puis `type flag.txt` une fois que tu es p.chevalier — par n'importe lequel des deux chemins."]
@@ -1119,6 +1130,7 @@ SCENARIOS.libre = {
        <p>Certaines pistes ne mèneront nulle part — un mot de passe robuste peut très bien résister au crack. Ce n'est pas un bug, c'est le jeu : il faut savoir pivoter.</p>` },
     { icon:'🕸️', title:'Lire les indices, pas juste exécuter des commandes', html:
       `<p>Prends le temps d'énumérer largement avant de foncer sur le premier compte trouvé. Les descriptions de comptes, les groupes, les ACL — tout est une piste potentielle.</p>
+       <p>Toutes les pistes ne se valent pas : un droit "GenericAll" sur un compte peut sembler énorme, mais si ce compte n'a lui-même aucun privilège particulier, ça ne mène nulle part. Vérifie toujours ce que la cible peut faire avant d'investir du temps dessus.</p>
        <p class="lesson-tip">💡 Cette fois, les indices restent volontairement vagues sur QUEL chemin suivre — ils t'aident à avancer, pas à choisir à ta place.</p>` },
     { icon:'📋', title:'Ta mission', html:
       `<p>Tu es <b>CORP\\j.reyes</b>, employé standard sur le domaine <b>CORP.LOCAL</b>. Quelque part dans ce domaine plus vaste, plusieurs chemins mènent à un compte Domain Admin. Trouve le tien.</p>
@@ -1245,17 +1257,18 @@ SCENARIOS.libre = {
       const [, name, pwd] = m;
       const entries = sc.acl[name] || [];
       const myGroups = sc.identities[state.user] ? sc.identities[state.user].groups : [];
-      const hasRight = entries.some(e => {
+      const matched = entries.find(e => {
         if(e.normal) return false;
         if(e.viaGroup) return myGroups.includes(e.viaGroup);
         return e.principal.toLowerCase().includes(state.user.toLowerCase());
       });
-      if(!hasRight){
+      if(!matched){
         print(`<span class="out-bad">Accès refusé : tu n'as pas les droits nécessaires sur ce compte.</span>`);
         return true;
       }
       print(`<span class="out-good">Mot de passe de ${name} réinitialisé avec succès.</span>`);
       state.extra.knownPasswords[name] = pwd;
+      if(name === 'p.chevalier') state.extra.privescRoute = matched.viaGroup || matched.principal;
       return true;
     }
 
@@ -1309,8 +1322,11 @@ SCENARIOS.libre = {
       state.user = name;
       updatePrompt();
       print(`<span class="out-good">Nouvelle session ouverte en tant que ${sc.identities[name].label}</span>`);
-      if(name === 'svc_web' || name === 'svc_sql') complete('foothold');
-      if(name === 'p.chevalier'){ state.extra.pathTaken = 'acl'; complete('privesc'); }
+      if(name === 'svc_web' || name === 'svc_sql' || name === 'svc_backup') complete('foothold');
+      if(name === 'p.chevalier'){
+        state.extra.pathTaken = state.extra.privescRoute === 'Server Admins' ? 'acl-serveradmins' : 'acl-helpdesk';
+        complete('privesc');
+      }
       return true;
     }
 
@@ -1331,14 +1347,24 @@ SCENARIOS.libre = {
     if(lower.startsWith('type ')){
       const file = cmd.slice(5).trim();
       if(file.toLowerCase() === 'flag.txt' && state.user === 'p.chevalier'){
-        const viaText = state.extra.pathTaken === 'pth'
-          ? "chaîne B : svc_sql → hash en mémoire → Pass-the-Hash direct sur p.chevalier."
-          : "chaîne A : svc_web → ACL oubliée sur t.nguyen → droit hérité du groupe Helpdesk sur p.chevalier.";
-        sc.chainSteps = state.extra.pathTaken === 'pth'
-          ? [{icon:'🔎',label:'Recon'},{icon:'🎫',label:'svc_sql cassé'},{icon:'🧠',label:'Hash en mémoire'},{icon:'🔁',label:'Pass-the-Hash'},{icon:'👑',label:'Domain Admin'}]
-          : [{icon:'🔎',label:'Recon'},{icon:'🎫',label:'svc_web cassé'},{icon:'🗂️',label:'ACL héritée'},{icon:'🔑',label:'Reset mdp'},{icon:'👑',label:'Domain Admin'}];
+        const routes = {
+          pth: {
+            via:"chaîne B : svc_sql → hash en mémoire → Pass-the-Hash direct sur p.chevalier.",
+            chain:[{icon:'🔎',label:'Recon'},{icon:'🎫',label:'svc_sql cassé'},{icon:'🧠',label:'Hash en mémoire'},{icon:'🔁',label:'Pass-the-Hash'},{icon:'👑',label:'Domain Admin'}]
+          },
+          'acl-helpdesk': {
+            via:"chaîne A : svc_web → ACL oubliée sur t.nguyen → droit hérité du groupe Helpdesk sur p.chevalier.",
+            chain:[{icon:'🔎',label:'Recon'},{icon:'🎫',label:'svc_web cassé'},{icon:'🗂️',label:'ACL héritée'},{icon:'🔑',label:'Reset mdp'},{icon:'👑',label:'Domain Admin'}]
+          },
+          'acl-serveradmins': {
+            via:"chaîne C : svc_backup → ajouté par erreur au groupe Server Admins → droit hérité direct sur p.chevalier.",
+            chain:[{icon:'🔎',label:'Recon'},{icon:'🎫',label:'svc_backup cassé'},{icon:'🗂️',label:'Groupe mal attribué'},{icon:'🔑',label:'Reset mdp'},{icon:'👑',label:'Domain Admin'}]
+          }
+        };
+        const route = routes[state.extra.pathTaken] || routes['acl-helpdesk'];
+        sc.chainSteps = route.chain;
         print(`<span class="flag-tag">${sc.flag}</span> <button class="copy-btn" onclick="copyFlag(this)">📋 Copier</button>`);
-        print(`<span class="out-good">🎉 Bravo — tu es arrivé par la ${viaText}</span>`);
+        print(`<span class="out-good">🎉 Bravo — tu es arrivé par la ${route.via}</span>`);
         print(`<span class="out-dim">🛡️ Pour se défendre : cartographier tous les chemins d'attaque possibles, pas seulement le plus évident (voir "En savoir plus").</span>`);
         complete('flag');
         finishMission();
