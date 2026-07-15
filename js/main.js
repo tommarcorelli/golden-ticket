@@ -51,6 +51,22 @@ function toggleLightMode(){
   applyTheme();
 }
 
+// ---------- effets sonores (préférence simple, séparée de la progression) ----------
+const SOUND_KEY = 'goldenticket_sound_fx';
+let soundFxEnabled = true;
+try{ const stored = localStorage.getItem(SOUND_KEY); soundFxEnabled = stored === null ? true : stored === '1'; }catch(e){ soundFxEnabled = true; }
+
+function applySoundToggle(){
+  const btn = document.getElementById('sound-toggle');
+  if(btn) btn.textContent = soundFxEnabled ? '🔊' : '🔇';
+}
+
+function toggleSoundFx(){
+  soundFxEnabled = !soundFxEnabled;
+  try{ localStorage.setItem(SOUND_KEY, soundFxEnabled ? '1' : '0'); }catch(e){ /* tant pis */ }
+  applySoundToggle();
+}
+
 // ---------- konami code (easter egg global, marche sur tous les écrans) ----------
 const KONAMI_SEQUENCE = ['arrowup','arrowup','arrowdown','arrowdown','arrowleft','arrowright','arrowleft','arrowright','b','a'];
 let konamiProgress = 0;
@@ -516,6 +532,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateHomeBadges();
   renderExpertToggle();
   applyTheme();
+  applySoundToggle();
   initLogoEasterEgg();
   initDomainEasterEgg();
 });

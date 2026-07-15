@@ -31,6 +31,7 @@ function print(html){
   div.innerHTML = html;
   screen().appendChild(div);
   screen().scrollTop = screen().scrollHeight;
+  if(html.indexOf('out-bad') !== -1) playBuzzSound();
 }
 function escapeHtml(s){
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -303,6 +304,12 @@ function showMissionComplete(elapsed, cmds, hints, newAchievements){
   document.getElementById('mc-chain').innerHTML = sc.chainSteps.map((s,i) =>
     (i > 0 ? '<div class="mc-arrow">→</div>' : '') + `<div class="mc-step">${s.icon}<span>${s.label}</span></div>`
   ).join('');
+  lastMissionResult = {
+    title: sc.completeTitle,
+    chain: sc.chainSteps.map(s => s.icon).join(' → '),
+    elapsed, cmds, hints,
+    epic: !!sc.epic
+  };
   const achHost = document.getElementById('mc-achievements');
   if(achHost){
     achHost.innerHTML = (newAchievements || []).map(a =>
@@ -349,7 +356,52 @@ function copyFlag(btn){
   }).catch(()=>{});
 }
 
+let lastMissionResult = null;
+
+function shareMissionResult(btn){
+  if(!lastMissionResult) return;
+  const r = lastMissionResult;
+  const text = [
+    `🎫 GOLDEN TICKET — ${r.title}`,
+    r.chain,
+    `⏱ ${r.elapsed}s · 💻 ${r.cmds} commandes · 💡 ${r.hints} indice${r.hints > 1 ? 's' : ''}`,
+    `Fais mieux : ${location.href.split('#')[0].split('?')[0]}`
+  ].join('\n');
+
+  if(navigator.share){
+    navigator.share({ text }).catch(()=>{ /* annulé par l'utilisateur, tant pis */ });
+    return;
+  }
+  navigator.clipboard?.writeText(text).then(()=>{
+    if(btn){
+      const original = btn.textContent;
+      btn.textContent = '✓ Copié dans le presse-papier';
+      setTimeout(()=> btn.textContent = original, 1800);
+    }
+  }).catch(()=>{});
+}
+
+function playBuzzSound(){
+  if(typeof soundFxEnabled !== 'undefined' && !soundFxEnabled) return;
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    const start = ctx.currentTime;
+    osc.frequency.setValueAtTime(120, start);
+    osc.frequency.exponentialRampToValueAtTime(75, start + 0.14);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(0.045, start + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + 0.16);
+  }catch(e){ /* audio non disponible, tant pis */ }
+}
+
 function playEpicFanfare(){
+  if(typeof soundFxEnabled !== 'undefined' && !soundFxEnabled) return;
   try{
     const ctx2 = new (window.AudioContext || window.webkitAudioContext)();
     // un accord grave qui monte, puis l'arpège triomphal
@@ -383,6 +435,7 @@ function playEpicFanfare(){
 }
 
 function playVictorySound(){
+  if(typeof soundFxEnabled !== 'undefined' && !soundFxEnabled) return;
   try{
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const notes = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6
