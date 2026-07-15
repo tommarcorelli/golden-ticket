@@ -31,6 +31,7 @@
   --green:#35d399;
   --amber:#f2a93b;
   --red:#ef5350;
+  --violet-accent:#c4b5fd;
 
   --grad-main:linear-gradient(135deg, var(--gold) 0%, var(--crimson) 55%, var(--rose) 100%);
   --grad-card:linear-gradient(135deg, rgba(242,183,5,0.12) 0%, rgba(220,38,38,0.08) 100%);
@@ -57,6 +58,10 @@ html.light-mode{
   --text:#241f16;
   --text-md:#5c5140;
   --text-dim:#8f8571;
+
+  --gold-li:#a15c00;
+  --crimson-li:#b91c1c;
+  --violet-accent:#6d28d9;
 }
 html.light-mode body::before{ opacity:0.5; }
 html.light-mode .bg-grid{ opacity:0.4; }
@@ -123,7 +128,7 @@ body::before{
 }
 .hero h1{
   font-family:var(--font-display);font-weight:800;font-size:58px;line-height:1.06;
-  letter-spacing:-1.5px;margin-bottom:20px;color:#fff;
+  letter-spacing:-1.5px;margin-bottom:20px;color:var(--text);
 }
 .hero h1 .grad{
   background:var(--grad-main);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
@@ -176,7 +181,7 @@ body::before{
   background:var(--grad-card);
   box-shadow:0 0 0 1px rgba(242,183,5,0.15) inset;
 }
-.mode-card h4{font-family:var(--font-display);font-weight:700;font-size:14.5px;color:#fff;margin-bottom:8px;}
+.mode-card h4{font-family:var(--font-display);font-weight:700;font-size:14.5px;color:var(--text);margin-bottom:8px;}
 .mode-card p{font-size:12.5px;color:var(--text-md);line-height:1.55;}
 .soon-tag{
   position:absolute;top:16px;right:16px;
@@ -290,7 +295,7 @@ body::before{
 .slide.active{display:block;}
 .slide-icon{font-size:40px;margin-bottom:18px;}
 .slide h2{
-  font-family:var(--font-display);font-weight:800;font-size:22px;color:#fff;
+  font-family:var(--font-display);font-weight:800;font-size:22px;color:var(--text);
   margin-bottom:18px;letter-spacing:-0.3px;
 }
 .slide p{
@@ -369,7 +374,7 @@ body::before{
   padding:16px 18px;
 }
 .lb-scenario.lb-epic{border-color:rgba(242,183,5,0.35);background:var(--grad-card);}
-.lb-scenario h4{font-family:var(--font-display);font-weight:700;font-size:13.5px;color:#fff;margin-bottom:10px;}
+.lb-scenario h4{font-family:var(--font-display);font-weight:700;font-size:13.5px;color:var(--text);margin-bottom:10px;}
 .lb-rows{display:flex;flex-direction:column;gap:2px;}
 .lb-row{
   display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:8px;
@@ -393,7 +398,7 @@ body::before{
 }
 .ach-badge.unlocked{opacity:1;filter:none;border-color:rgba(242,183,5,0.35);}
 .ach-badge .ach-icon{font-size:22px;display:block;margin-bottom:6px;}
-.ach-badge .ach-title{font-family:var(--font-display);font-weight:700;font-size:11px;color:#fff;display:block;}
+.ach-badge .ach-title{font-family:var(--font-display);font-weight:700;font-size:11px;color:var(--text);display:block;}
 .ach-badge .ach-desc{font-size:10px;color:var(--text-dim);display:block;margin-top:3px;line-height:1.4;}
 
 .mc-achievements{display:flex;flex-direction:column;gap:6px;margin:14px 0;}
@@ -516,7 +521,7 @@ body::before{
   color:var(--gold-li);text-transform:uppercase;margin-bottom:6px;
 }
 .epic-content h3{
-  font-family:var(--font-display);font-weight:800;font-size:21px;color:#fff;
+  font-family:var(--font-display);font-weight:800;font-size:21px;color:var(--text);
   margin-bottom:6px;letter-spacing:-0.3px;
 }
 .epic-content p{font-size:12.5px;color:var(--text-md);line-height:1.5;max-width:520px;}
@@ -547,7 +552,7 @@ body::before{
 .libre-banner .epic-glow{
   background:radial-gradient(circle at 15% 50%, rgba(139,92,246,0.22), transparent 55%);
 }
-.libre-banner .epic-eyebrow{color:#c4b5fd;}
+.libre-banner .epic-eyebrow{color:var(--violet-accent);}
 .grad-libre{
   background:linear-gradient(135deg, #a78bfa 0%, #35d399 100%);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
@@ -653,7 +658,7 @@ body::before{
 @media (max-width:640px){.expert-desc{display:none;}}
 
 .mission-timer{
-  font-family:var(--font-mono);font-size:12px;color:#c4b5fd;
+  font-family:var(--font-mono);font-size:12px;color:var(--violet-accent);
   background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.3);
   border-radius:999px;padding:5px 12px;white-space:nowrap;
 }
@@ -664,7 +669,7 @@ body::before{
   background:var(--glass);border:1px solid var(--glass-border);border-radius:999px;
   padding:6px 16px;cursor:pointer;transition:all .15s ease;
 }
-.lb-tab.active{color:#fff;border-color:rgba(139,92,246,0.5);background:rgba(139,92,246,0.12);}
+.lb-tab.active{color:var(--text);border-color:rgba(139,92,246,0.5);background:rgba(139,92,246,0.12);}
 
 /* ---------- responsive mobile ---------- */
 @media (max-width:640px){

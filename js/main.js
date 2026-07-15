@@ -67,15 +67,15 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-function triggerKonamiEasterEgg(){
+function triggerKonamiEasterEgg(message, pieces){
   const host = document.createElement('div');
   host.className = 'konami-host';
   document.body.appendChild(host);
-  const pieces = ['🎫','👑','✨','🔑','🏆'];
+  const set = pieces || ['🎫','👑','✨','🔑','🏆'];
   for(let i=0;i<50;i++){
     const span = document.createElement('span');
     span.className = 'confetti-piece';
-    span.textContent = pieces[i % pieces.length];
+    span.textContent = set[i % set.length];
     span.style.left = (Math.random()*100) + '%';
     span.style.animationDelay = (Math.random()*0.8) + 's';
     span.style.animationDuration = (2.4 + Math.random()*1.6) + 's';
@@ -84,7 +84,7 @@ function triggerKonamiEasterEgg(){
   }
   const toast = document.createElement('div');
   toast.className = 'konami-toast';
-  toast.textContent = "🎮 Code secret trouvé. Pas de vies infinies ici, juste du style.";
+  toast.textContent = message || "🎮 Code secret trouvé. Pas de vies infinies ici, juste du style.";
   document.body.appendChild(toast);
   requestAnimationFrame(() => toast.classList.add('show'));
   setTimeout(() => {
@@ -92,6 +92,38 @@ function triggerKonamiEasterEgg(){
     setTimeout(() => toast.remove(), 400);
   }, 3200);
   setTimeout(() => host.remove(), 4200);
+}
+
+// ---------- code clavier caché "goldenticket" (tapé librement, hors saisie terminal) ----------
+const WORD_CODE = 'goldenticket';
+let wordBuffer = '';
+document.addEventListener('keydown', (e) => {
+  const active = document.activeElement;
+  if(active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+  if(e.key.length !== 1) return;
+  wordBuffer = (wordBuffer + e.key.toLowerCase()).slice(-WORD_CODE.length);
+  if(wordBuffer === WORD_CODE){
+    wordBuffer = '';
+    triggerKonamiEasterEgg("🎫 Tu as tapé le mot magique. Golden Ticket débloqué (façon de parler).", ['🎫','✨','💛']);
+  }
+});
+
+// ---------- triple-clic caché sur le domaine ----------
+function initDomainEasterEgg(){
+  const pill = document.querySelector('.domain-pill');
+  if(!pill) return;
+  let clicks = 0;
+  let resetTimer = null;
+  pill.style.cursor = 'pointer';
+  pill.addEventListener('click', () => {
+    clicks++;
+    clearTimeout(resetTimer);
+    resetTimer = setTimeout(() => { clicks = 0; }, 900);
+    if(clicks >= 3){
+      clicks = 0;
+      triggerKonamiEasterEgg("🏰 CORP.LOCAL vous salue. Le domaine n'a aucun secret pour vous.", ['🏰','🔑','🛡️']);
+    }
+  });
 }
 
 // ---------- progression persistante (localStorage) ----------
@@ -485,6 +517,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderExpertToggle();
   applyTheme();
   initLogoEasterEgg();
+  initDomainEasterEgg();
 });
 
 function initLogoEasterEgg(){
