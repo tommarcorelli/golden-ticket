@@ -49,7 +49,7 @@ function renderObjectives(){
   if(!el) return;
   el.innerHTML = currentScenario().objectives.map(o => {
     const done = !!state.objDone[o.id];
-    return `<div class="obj ${done?'done':''}"><span class="mark">${done?'✓':'○'}</span><span class="txt">${o.text}</span></div>`;
+    return `<div class="obj ${done?'done':''}" role="listitem"><span class="mark" aria-hidden="true">${done?'✓':'○'}</span><span class="sr-only">${done?'Terminé : ':'À faire : '}</span><span class="txt">${o.text}</span></div>`;
   }).join('');
 }
 function complete(id){
@@ -103,8 +103,9 @@ function bootTerminal(scenarioId){
   hintsUsed = 0;
   manCount = 0;
   document.getElementById('screen').closest('.terminal').classList.remove('victory');
-  document.getElementById('mission-complete')?.classList.remove('show');
-  document.getElementById('mission-complete')?.classList.remove('epic');
+  const mc = document.getElementById('mission-complete');
+  if(mc){ mc.classList.remove('show'); mc.classList.remove('epic'); mc.hidden = true; }
+  document.removeEventListener('keydown', trapMcFocus);
   const achHost = document.getElementById('mc-achievements'); if(achHost) achHost.innerHTML = '';
   const ch = document.getElementById('confetti-host'); if(ch) ch.innerHTML = '';
   document.getElementById('game-tag').textContent = sc.tag + (state.expertMode ? '  🎓' : '');
@@ -339,13 +340,36 @@ function showMissionComplete(elapsed, cmds, hints, newAchievements){
     setTimeout(()=> { confettiHost.innerHTML = ''; }, 4200);
   }
 
+  overlay.hidden = false;
   overlay.classList.add('show');
+  mcReturnFocus = document.activeElement;
+  card.focus({ preventScroll: true });
+  document.addEventListener('keydown', trapMcFocus);
+}
+let mcReturnFocus = null;
+function trapMcFocus(e){
+  const overlay = document.getElementById('mission-complete');
+  if(!overlay.classList.contains('show')) return;
+  if(e.key === 'Escape'){ closeMissionComplete(); return; }
+  if(e.key !== 'Tab') return;
+  const focusables = overlay.querySelectorAll('button, [href], [tabindex]:not([tabindex="-1"])');
+  if(!focusables.length) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  if(e.shiftKey && document.activeElement === first){
+    e.preventDefault(); last.focus();
+  } else if(!e.shiftKey && document.activeElement === last){
+    e.preventDefault(); first.focus();
+  }
 }
 function closeMissionComplete(){
   const overlay = document.getElementById('mission-complete');
   overlay.classList.remove('show');
   overlay.classList.remove('epic');
+  overlay.hidden = true;
   document.getElementById('confetti-host').innerHTML = '';
+  document.removeEventListener('keydown', trapMcFocus);
+  if(mcReturnFocus && document.body.contains(mcReturnFocus)) mcReturnFocus.focus();
 }
 
 function copyFlag(btn){

@@ -16,21 +16,24 @@
 <script>try{ if(localStorage.getItem('goldenticket_light_mode')==='1') document.documentElement.classList.add('light-mode'); }catch(e){}</script>
 </head>
 <body>
-<div class="bg-grid"></div>
+<a href="#main-content" class="skip-link">Aller au contenu principal</a>
+<div class="bg-grid" aria-hidden="true"></div>
 
-<div class="topbar">
-  <div class="brand"><span class="ticket">🎫</span> GOLDEN <span class="grad">TICKET</span></div>
-  <div style="display:flex;align-items:center;gap:14px;">
-    <button class="back-link" id="theme-toggle" onclick="toggleLightMode()" title="Basculer thème clair/sombre">🌙</button>
-    <button class="back-link" id="sound-toggle" onclick="toggleSoundFx()" title="Activer/désactiver les effets sonores">🔊</button>
+<header class="topbar">
+  <div class="brand"><span class="ticket" aria-hidden="true">🎫</span> GOLDEN <span class="grad">TICKET</span></div>
+  <nav aria-label="Navigation principale" style="display:flex;align-items:center;gap:14px;">
+    <button class="back-link" id="theme-toggle" onclick="toggleLightMode()" title="Basculer thème clair/sombre" aria-pressed="false">🌙<span class="sr-only"> Thème clair/sombre</span></button>
+    <button class="back-link" id="sound-toggle" onclick="toggleSoundFx()" title="Activer/désactiver les effets sonores" aria-pressed="true">🔊<span class="sr-only"> Effets sonores</span></button>
     <button class="back-link" onclick="showLeaderboard()">🏆 Classement</button>
     <button class="back-link" onclick="showView('view-glossary')">📖 Glossaire</button>
-    <div class="domain-pill">CORP.LOCAL</div>
-  </div>
-</div>
+    <div class="domain-pill" aria-hidden="true">CORP.LOCAL</div>
+  </nav>
+</header>
+
+<main id="main-content">
 
 <!-- ============ ACCUEIL ============ -->
-<section id="view-home" class="view active">
+<section id="view-home" class="view active" tabindex="-1" aria-label="Accueil">
   <div class="hero">
     <div class="eyebrow">🏆 Domain Breach Lab</div>
     <h1>Vole la <span class="grad">couronne</span><br>du domaine.</h1>
@@ -43,8 +46,8 @@
       <input type="file" id="import-file-input" accept="application/json" style="display:none;" onchange="importProgress(this.files[0])">
     </div>
 
-    <button class="expert-toggle" id="expert-toggle" onclick="toggleExpertMode()">
-      <span class="expert-switch" id="expert-switch"></span>
+    <button class="expert-toggle" id="expert-toggle" onclick="toggleExpertMode()" role="switch" aria-checked="false">
+      <span class="expert-switch" id="expert-switch" aria-hidden="true"></span>
       <span class="expert-label">🎓 Mode Expert <span class="expert-desc">— indices désactivés, chrono visible, classement à part</span></span>
     </button>
 
@@ -80,7 +83,7 @@ Ticket obtenu. Prêt à cracker.</div>
   </div>
 
   <div class="epic-banner-wrap libre-wrap">
-    <div class="epic-banner libre-banner" onclick="goToLesson('libre')">
+    <div class="epic-banner libre-banner" onclick="goToLesson('libre')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();goToLesson('libre');}" role="button" tabindex="0" aria-label="Explorer le mode libre">
       <div class="epic-glow"></div>
       <div class="epic-crown">🗺️</div>
       <div class="epic-content">
@@ -94,7 +97,7 @@ Ticket obtenu. Prêt à cracker.</div>
   </div>
 
   <div class="epic-banner-wrap">
-    <div class="epic-banner" onclick="goToLesson('goldenticket')">
+    <div class="epic-banner" onclick="goToLesson('goldenticket')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();goToLesson('goldenticket');}" role="button" tabindex="0" aria-label="Jouer le chapitre final, Forge ton propre Golden Ticket">
       <div class="epic-glow"></div>
       <div class="epic-crown">👑</div>
       <div class="epic-content">
@@ -109,7 +112,7 @@ Ticket obtenu. Prêt à cracker.</div>
 </section>
 
 <!-- ============ LEÇON ============ -->
-<section id="view-lesson" class="view">
+<section id="view-lesson" class="view" tabindex="-1" aria-label="Leçon">
   <div class="lesson-shell">
     <div class="game-header">
       <button class="back-link" onclick="backHome()">← Retour</button>
@@ -127,51 +130,51 @@ Ticket obtenu. Prêt à cracker.</div>
 </section>
 
 <!-- ============ GLOSSAIRE ============ -->
-<section id="view-glossary" class="view">
+<section id="view-glossary" class="view" tabindex="-1" aria-label="Glossaire Active Directory">
   <div class="lesson-shell" style="max-width:760px;">
     <div class="game-header">
       <button class="back-link" onclick="backHome()">← Retour</button>
       <div class="scenario-tag">📖 GLOSSAIRE AD</div>
     </div>
-    <div class="glossary-grid">
-      <div class="gloss-card">
+    <ul class="glossary-grid" style="list-style:none;margin:0;padding:0;">
+      <li class="gloss-card">
         <h4>Domaine / Domain Controller</h4>
         <p>Le domaine est l'espace centralisé de gestion d'une entreprise (comptes, machines, droits). Le <b>Domain Controller</b> (DC) est le serveur qui fait autorité dessus.</p>
-      </div>
-      <div class="gloss-card">
+      </li>
+      <li class="gloss-card">
         <h4>Kerberos</h4>
         <p>Protocole d'authentification d'AD : au lieu d'envoyer un mot de passe à chaque service, l'utilisateur obtient des <b>tickets</b> temporaires qui prouvent son identité.</p>
-      </div>
-      <div class="gloss-card">
+      </li>
+      <li class="gloss-card">
         <h4>SPN (Service Principal Name)</h4>
         <p>Identifiant qui relie un service (ex: une base SQL) à un compte du domaine. Tout compte avec un SPN peut se voir demander un ticket par n'importe quel utilisateur authentifié.</p>
-      </div>
-      <div class="gloss-card">
+      </li>
+      <li class="gloss-card">
         <h4>Kerberoasting</h4>
         <p>Attaque consistant à demander le ticket chiffré d'un compte de service, puis à le casser hors-ligne pour retrouver le mot de passe en clair — sans jamais alerter le système.</p>
-      </div>
-      <div class="gloss-card">
+      </li>
+      <li class="gloss-card">
         <h4>Domain Admin</h4>
         <p>Groupe aux pleins pouvoirs sur le domaine entier. C'est la cible ultime de la plupart des attaques AD — la "couronne".</p>
-      </div>
-      <div class="gloss-card">
+      </li>
+      <li class="gloss-card">
         <h4>ACL (Access Control List)</h4>
         <p>Liste qui définit qui a le droit de faire quoi sur un objet (lire, modifier, supprimer). Une ACL mal configurée peut donner à un compte anodin le droit de modifier un compte puissant.</p>
-      </div>
-      <div class="gloss-card">
+      </li>
+      <li class="gloss-card">
         <h4>Pass-the-Hash</h4>
         <p>Technique consistant à réutiliser le hash d'un mot de passe (au lieu du mot de passe en clair) pour s'authentifier — le hash suffit, pas besoin de le casser.</p>
-      </div>
-      <div class="gloss-card">
+      </li>
+      <li class="gloss-card">
         <h4>krbtgt</h4>
         <p>Compte spécial dont la clé chiffre tous les tickets Kerberos du domaine. Le compromettre permet de forger n'importe quel ticket à volonté : le vrai <b>Golden Ticket</b>.</p>
-      </div>
-    </div>
+      </li>
+    </ul>
   </div>
 </section>
 
 <!-- ============ CLASSEMENT ============ -->
-<section id="view-leaderboard" class="view">
+<section id="view-leaderboard" class="view" tabindex="-1" aria-label="Classement">
   <div class="lesson-shell" style="max-width:640px;">
     <div class="game-header">
       <button class="back-link" onclick="backHome()">← Retour</button>
@@ -188,7 +191,7 @@ Ticket obtenu. Prêt à cracker.</div>
 </section>
 
 <!-- ============ EN SAVOIR PLUS (deep dive défense) ============ -->
-<section id="view-explain" class="view">
+<section id="view-explain" class="view" tabindex="-1" aria-label="Analyse défensive">
   <div class="lesson-shell" style="max-width:640px;">
     <div class="game-header">
       <button class="back-link" onclick="backHome()">← Retour</button>
@@ -204,7 +207,7 @@ Ticket obtenu. Prêt à cracker.</div>
 </section>
 
 <!-- ============ JEU ============ -->
-<section id="view-game" class="view">
+<section id="view-game" class="view" tabindex="-1" aria-label="Mission en cours">
   <div class="game-shell">
     <div class="game-header">
       <button class="back-link" onclick="backHome()">← Retour</button>
@@ -229,10 +232,10 @@ Ticket obtenu. Prêt à cracker.</div>
       <div class="side">
         <div class="card">
           <h3>Objectif</h3>
-          <div id="objectives"></div>
+          <div id="objectives" role="list" aria-live="polite"></div>
           <button class="hint-btn" id="hint-btn" onclick="showHint()">💡 Indice</button>
-          <div id="hint-dots" class="hint-dots"></div>
-          <div id="hint-text"></div>
+          <div id="hint-dots" class="hint-dots" aria-hidden="true"></div>
+          <div id="hint-text" role="status" aria-live="polite"></div>
         </div>
         <div class="card">
           <h3>Commandes utiles</h3>
@@ -242,9 +245,9 @@ Ticket obtenu. Prêt à cracker.</div>
       </div>
     </div>
 
-    <div id="mission-complete" class="mc-overlay">
+    <div id="mission-complete" class="mc-overlay" role="dialog" aria-modal="true" aria-labelledby="mc-title" aria-describedby="mc-sub-text" hidden>
       <div id="confetti-host" class="confetti-host"></div>
-      <div class="mc-card">
+      <div class="mc-card" tabindex="-1">
         <div class="mc-badge">🏆</div>
         <h2 id="mc-title">Domaine compromis</h2>
         <p class="mc-sub" id="mc-sub-text">Compte de service exploité, groupe privilégié abusé.</p>
@@ -270,6 +273,8 @@ Ticket obtenu. Prêt à cracker.</div>
     </div>
   </div>
 </section>
+
+</main>
 
 <script src="js/scenarios.js"></script>
 <script src="js/terminal.js"></script>

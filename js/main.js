@@ -1,7 +1,9 @@
 function showView(id){
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+  const el = document.getElementById(id);
+  el.classList.add('active');
   window.scrollTo(0,0);
+  el.focus({ preventScroll: true });
   const titles = {
     'view-home': 'Golden Ticket — Domain Breach Lab',
     'view-lesson': '📘 Leçon — Golden Ticket',
@@ -30,7 +32,7 @@ function toggleExpertMode(){
 function renderExpertToggle(){
   const btn = document.getElementById('expert-toggle');
   const sw = document.getElementById('expert-switch');
-  if(btn){ btn.classList.toggle('on', expertMode); }
+  if(btn){ btn.classList.toggle('on', expertMode); btn.setAttribute('aria-checked', expertMode ? 'true' : 'false'); }
   if(sw){ sw.setAttribute('aria-checked', expertMode ? 'true' : 'false'); }
 }
 
@@ -42,7 +44,10 @@ try{ lightMode = localStorage.getItem(THEME_KEY) === '1'; }catch(e){ lightMode =
 function applyTheme(){
   document.documentElement.classList.toggle('light-mode', lightMode);
   const btn = document.getElementById('theme-toggle');
-  if(btn) btn.textContent = lightMode ? '☀️' : '🌙';
+  if(btn){
+    btn.setAttribute('aria-pressed', lightMode ? 'true' : 'false');
+    btn.childNodes[0].textContent = lightMode ? '☀️' : '🌙';
+  }
 }
 
 function toggleLightMode(){
@@ -58,7 +63,10 @@ try{ const stored = localStorage.getItem(SOUND_KEY); soundFxEnabled = stored ===
 
 function applySoundToggle(){
   const btn = document.getElementById('sound-toggle');
-  if(btn) btn.textContent = soundFxEnabled ? '🔊' : '🔇';
+  if(btn){
+    btn.setAttribute('aria-pressed', soundFxEnabled ? 'true' : 'false');
+    btn.childNodes[0].textContent = soundFxEnabled ? '🔊' : '🔇';
+  }
 }
 
 function toggleSoundFx(){
