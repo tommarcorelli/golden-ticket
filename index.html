@@ -80,6 +80,18 @@ Ticket obtenu. Prêt à cracker.</div>
       <p>Exploite des permissions mal configurées pour prendre le contrôle d'un autre compte et grimper vers le trône.</p>
       <button class="mode-play" onclick="goToLesson('acl')">▶ Lancer</button>
     </div>
+    <div class="mode-card active-mode" id="mode-card-azuread">
+      <span class="done-badge" id="badge-azuread" style="display:none;">✓ Terminé</span>
+      <h4>☁️ Scénario 04 — Cloud AD (Entra ID)</h4>
+      <p>Un secret d'application fuité dans un pipeline, un rôle Application Administrator abusé jusqu'au Global Admin.</p>
+      <button class="mode-play" onclick="goToLesson('azuread')">▶ Lancer</button>
+    </div>
+    <div class="mode-card active-mode" id="mode-card-blueteam">
+      <span class="done-badge" id="badge-blueteam" style="display:none;">✓ Terminé</span>
+      <h4>🛰️ Mode Blue Team — Analyste SOC</h4>
+      <p>Change de camp : lis des journaux d'incident, identifie la technique utilisée, le compte compromis, et reconstitue la chronologie.</p>
+      <button class="mode-play" onclick="goToLesson('blueteam')">▶ Enquêter</button>
+    </div>
   </div>
 
   <div class="epic-banner-wrap libre-wrap">
@@ -120,6 +132,19 @@ Ticket obtenu. Prêt à cracker.</div>
     </div>
 
     <div id="lesson-slides"></div>
+
+    <div id="libre-seed-panel" class="libre-seed-panel" style="display:none;">
+      <div class="libre-seed-row">
+        <span class="libre-seed-label">🎲 Domaine tiré au sort — seed : <code id="libre-seed-code">—</code></span>
+        <button class="io-link" onclick="rerollLibreDomain()">🎲 Nouveau domaine</button>
+      </div>
+      <div class="libre-seed-row">
+        <label for="libre-seed-input" class="sr-only">Charger un seed de domaine</label>
+        <input type="text" id="libre-seed-input" placeholder="Coller un seed reçu (ex: BCTX-4821)" maxlength="12">
+        <button class="io-link" onclick="loadLibreSeed()">🔀 Charger ce seed</button>
+      </div>
+      <p class="libre-seed-hint">Même seed = même domaine, mêmes comptes, mêmes mots de passe. Partage ton seed pour que quelqu'un d'autre rejoue exactement ta partie.</p>
+    </div>
 
     <div class="slide-nav">
       <button class="back-link" id="slide-back" onclick="prevSlide()">← Précédent</button>
@@ -168,6 +193,26 @@ Ticket obtenu. Prêt à cracker.</div>
       <li class="gloss-card">
         <h4>krbtgt</h4>
         <p>Compte spécial dont la clé chiffre tous les tickets Kerberos du domaine. Le compromettre permet de forger n'importe quel ticket à volonté : le vrai <b>Golden Ticket</b>.</p>
+      </li>
+      <li class="gloss-card">
+        <h4>Entra ID (ex-Azure AD)</h4>
+        <p>L'annuaire cloud de Microsoft. Même logique qu'un annuaire Active Directory sur site, mais hébergé par Microsoft et organisé en <b>tenant</b> (ex : corp.onmicrosoft.com).</p>
+      </li>
+      <li class="gloss-card">
+        <h4>App Registration / Service Principal</h4>
+        <p>Une application a elle aussi une identité dans Entra ID : l'<b>App Registration</b> définit l'application, le <b>Service Principal</b> est l'instance qui s'authentifie réellement, avec un clientId et un secret.</p>
+      </li>
+      <li class="gloss-card">
+        <h4>Application Administrator</h4>
+        <p>Rôle d'annuaire permettant de gérer les applications du tenant, y compris leurs identifiants. Un titulaire de ce rôle peut ajouter un secret à une application plus privilégiée que lui — et en emprunter les droits.</p>
+      </li>
+      <li class="gloss-card">
+        <h4>Global Administrator</h4>
+        <p>Rôle aux pleins pouvoirs sur un tenant Entra ID — l'équivalent cloud de Domain Admin. Ne devrait jamais être attribué directement à un compte d'automatisation.</p>
+      </li>
+      <li class="gloss-card">
+        <h4>OPSEC / SOC</h4>
+        <p>L'<b>OPSEC</b> (sécurité opérationnelle) désigne la discrétion d'un attaquant. Le <b>SOC</b> (Security Operations Center) est l'équipe qui surveille les journaux et peut détecter une intrusion — certaines actions (authentifications, changements d'annuaire) sont bien plus visibles que d'autres (cassage hors-ligne, par exemple).</p>
       </li>
     </ul>
   </div>
@@ -237,6 +282,18 @@ Ticket obtenu. Prêt à cracker.</div>
           <div id="hint-dots" class="hint-dots" aria-hidden="true"></div>
           <div id="hint-text" role="status" aria-live="polite"></div>
         </div>
+        <div class="card" id="opsec-card" style="display:none;">
+          <h3>🛰️ Alerte SOC</h3>
+          <div class="opsec-bar-track" aria-hidden="true"><div class="opsec-bar-fill" id="opsec-bar-fill"></div></div>
+          <div id="opsec-status" class="opsec-status" role="status" aria-live="polite">Aucune activité suspecte détectée</div>
+        </div>
+        <div class="card" id="graph-card" style="display:none;">
+          <h3>🕸️ Carte d'attaque
+            <button type="button" class="graph-expand-btn" onclick="AttackGraph.openLightbox()" aria-label="Agrandir la carte d'attaque" title="Agrandir">⤢</button>
+          </h3>
+          <div id="graph-svg-host" class="graph-svg-host" aria-hidden="true"></div>
+          <div id="graph-empty-msg" class="graph-empty-msg">La carte se remplit au fil de tes découvertes...</div>
+        </div>
         <div class="card">
           <h3>Commandes utiles</h3>
           <div class="cmd-ref" id="cmd-ref-list"></div>
@@ -259,6 +316,7 @@ Ticket obtenu. Prêt à cracker.</div>
           <div class="mc-stat"><span id="mc-time">0s</span><label>Temps</label></div>
           <div class="mc-stat"><span id="mc-cmds">0</span><label>Commandes</label></div>
           <div class="mc-stat"><span id="mc-hints">0</span><label>Indices</label></div>
+          <div class="mc-stat" id="mc-opsec-stat" style="display:none;"><span id="mc-opsec">🥷 Furtif</span><label>OPSEC</label></div>
         </div>
 
         <div class="mc-actions">
@@ -272,11 +330,34 @@ Ticket obtenu. Prêt à cracker.</div>
       </div>
     </div>
   </div>
+
+  <div id="graph-lightbox" class="graph-lightbox" role="dialog" aria-modal="true" aria-label="Carte d'attaque en grand" hidden>
+    <div class="graph-lightbox-inner">
+      <div class="graph-lightbox-head">
+        <h3>🕸️ Carte d'attaque</h3>
+        <button type="button" class="back-link graph-lightbox-close" onclick="AttackGraph.closeLightbox()">✕ Fermer</button>
+      </div>
+      <div id="graph-svg-host-lg" class="graph-svg-host-lg"></div>
+      <div class="graph-legend">
+        <span><i class="gl-dot gl-user"></i> Compte</span>
+        <span><i class="gl-dot gl-service"></i> Service</span>
+        <span><i class="gl-dot gl-admin"></i> Admin</span>
+        <span><i class="gl-dot gl-group"></i> Groupe</span>
+        <span><i class="gl-line gl-memberof"></i> Appartenance</span>
+        <span><i class="gl-line gl-abuse"></i> Droit abusable</span>
+        <span><i class="gl-line gl-auth"></i> Authentification</span>
+        <span><i class="gl-line gl-owned"></i> Chemin emprunté</span>
+        <span>👑 Compte compromis</span>
+      </div>
+    </div>
+  </div>
 </section>
 
 </main>
 
+<script src="js/graph.js"></script>
 <script src="js/scenarios.js"></script>
+<script src="js/domaingen.js"></script>
 <script src="js/terminal.js"></script>
 <script src="js/main.js"></script>
 </body>

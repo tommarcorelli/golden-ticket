@@ -87,6 +87,38 @@ function showHint(){
   }
 }
 
+function renderOpsecGauge(){
+  const fill = document.getElementById('opsec-bar-fill');
+  const status = document.getElementById('opsec-status');
+  if(!fill || !status) return;
+  const level = (state.opsec && state.opsec.level) || 0;
+  fill.style.width = level + '%';
+  fill.classList.toggle('warn', level >= 40 && level < 100);
+  fill.classList.toggle('danger', level >= 100);
+  if(state.opsec && state.opsec.detected){
+    status.textContent = '🚨 Détecté par le SOC — la mission continue, mais tu n\'es plus furtif.';
+    status.classList.add('opsec-detected');
+  } else if(level >= 40){
+    status.textContent = `⚠️ Activité suspecte remontée (${level}%)`;
+    status.classList.remove('opsec-detected');
+  } else {
+    status.textContent = level === 0 ? 'Aucune activité suspecte détectée' : `Niveau d'alerte : ${level}%`;
+    status.classList.remove('opsec-detected');
+  }
+}
+
+function addNoise(points, label){
+  const sc = currentScenario();
+  if(!sc.opsecEnabled || !state.opsec) return;
+  if(state.opsec.detected) return;
+  state.opsec.level = Math.min(100, state.opsec.level + points);
+  renderOpsecGauge();
+  if(state.opsec.level >= 100){
+    state.opsec.detected = true;
+    print(`<span class="out-bad">🚨 Alerte : l'équipe sécurité (SOC) a été notifiée — trop d'actions bruyantes d'affilée (${escapeHtml(label)}). La mission continue, mais ta présence est désormais surveillée.</span>`);
+  }
+}
+
 function bootTerminal(scenarioId){
   if(scenarioId) state.scenarioId = scenarioId;
   const sc = currentScenario();
@@ -96,6 +128,7 @@ function bootTerminal(scenarioId){
   state.hintLevel = {};
   state.extra = sc.initState ? sc.initState() : {};
   state.expertMode = (typeof expertMode !== 'undefined') ? expertMode : false;
+  state.opsec = { level:0, detected:false };
   cmdHistory = [];
   historyIndex = -1;
   missionStart = Date.now();
@@ -128,6 +161,10 @@ function bootTerminal(scenarioId){
   const timerEl = document.getElementById('mission-timer');
   if(timerEl) timerEl.style.display = state.expertMode ? 'inline-block' : 'none';
   if(state.expertMode) startMissionTimer();
+  const opsecCard = document.getElementById('opsec-card');
+  if(opsecCard) opsecCard.style.display = sc.opsecEnabled ? 'block' : 'none';
+  renderOpsecGauge();
+  if(typeof AttackGraph !== 'undefined') AttackGraph.reset();
   renderObjectives();
   updatePrompt();
   sc.introLines.forEach(line => print(line));
@@ -187,7 +224,13 @@ function handle(raw){
   }
 
   // délégation au scénario actif
-  if(sc.handle(lower, cmd, m)) return;
+  const handledByScenario = sc.handle(lower, cmd, m);
+  if(sc.noiseRules){
+    sc.noiseRules.forEach(rule => {
+      if(rule.test(lower)) addNoise(rule.points, rule.label);
+    });
+  }
+  if(handledByScenario) return;
 
   // easter eggs génériques
   if(lower === 'sudo make me a sandwich' || lower === 'make me a sandwich'){
@@ -281,7 +324,8 @@ function finishMission(){
   if(typeof unlockAchievements === 'function'){
     newAchievements = unlockAchievements({
       scenarioId: state.scenarioId, elapsed, hintsUsed, manCount,
-      pathTaken: state.extra ? state.extra.pathTaken : null
+      pathTaken: state.extra ? state.extra.pathTaken : null,
+      opsecEnabled: !!sc.opsecEnabled, detected: !!(state.opsec && state.opsec.detected)
     });
   }
   if(sc.epic){
@@ -320,6 +364,15 @@ function showMissionComplete(elapsed, cmds, hints, newAchievements){
   document.getElementById('mc-time').textContent = elapsed + 's';
   document.getElementById('mc-cmds').textContent = cmds;
   document.getElementById('mc-hints').textContent = hints;
+  const opsecStat = document.getElementById('mc-opsec-stat');
+  if(opsecStat){
+    if(sc.opsecEnabled){
+      opsecStat.style.display = '';
+      document.getElementById('mc-opsec').textContent = state.opsec.detected ? '🚨 Détecté' : '🥷 Furtif';
+    } else {
+      opsecStat.style.display = 'none';
+    }
+  }
   const certBtn = document.getElementById('mc-cert-btn');
   if(certBtn) certBtn.style.display = sc.epic ? 'inline-block' : 'none';
 

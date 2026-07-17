@@ -5,6 +5,38 @@
 
 const SCENARIOS = {};
 
+// ═══════════════════════════════════════════════════════════
+// Système OPSEC (furtivité) — règles de "bruit" partagées entre scénarios.
+// Chaque règle : une commande qui, une fois exécutée, fait monter la jauge
+// d'alerte SOC simulée (voir addNoise() dans terminal.js).
+// Volontairement, les actions hors-ligne (crack, forge de ticket brute) n'en
+// génèrent pas : la leçon est que l'exploitation elle-même est souvent
+// discrète — ce sont l'authentification et les changements d'annuaire qui
+// laissent des traces.
+// ═══════════════════════════════════════════════════════════
+function noiseRule(regex, points, label){
+  return { test:(lower) => regex.test(lower), points, label };
+}
+
+const NOISE = {
+  netUserAll:     noiseRule(/^net user \/domain$/, 4, 'Énumération des comptes du domaine'),
+  netUserOne:     noiseRule(/^net user \S+ \/domain$/, 4, "Consultation d'un compte du domaine"),
+  domainUserSpn:  noiseRule(/^(get-domainuser -spn|getdomainuser -spn)$/, 4, 'Requête LDAP filtrée sur les SPN'),
+  kerberoast:     noiseRule(/^invoke-kerberoast -identity \S+$/, 18, 'Demande de ticket de service (Event ID 4769)'),
+  runas:          noiseRule(/^runas \/user:\S+ cmd$/, 10, "Événement d'authentification (ouverture de session)"),
+  objectAcl:      noiseRule(/^get-objectacl \S+$/, 3, "Lecture d'ACL"),
+  resetPassword:  noiseRule(/^set-domainuserpassword -identity \S+ -newpassword \S+$/, 20, 'Réinitialisation de mot de passe (Event ID 4724)'),
+  mimikatzLogon:  noiseRule(/^mimikatz sekurlsa::logonpasswords$/, 25, 'Extraction mémoire LSASS (souvent détectée par un EDR)'),
+  mimikatzDcsync: noiseRule(/^mimikatz lsadump::dcsync \/user:krbtgt$/, 40, 'Réplication DCSync (Event ID 4662 — très anormal hors des DC)'),
+  mimikatzGolden: noiseRule(/^mimikatz kerberos::golden .*$/, 10, "Forge d'un ticket (préparation risquée)"),
+  pth:            noiseRule(/^pth \/target:\S+ \/user:\S+ \/hash:\S+$/, 15, 'Authentification par hash (NTLM)'),
+  mgAppAll:       noiseRule(/^get-mgapp -all$/, 4, 'Requête Microsoft Graph en lecture'),
+  mgAppOne:       noiseRule(/^get-mgapp \S+$/, 4, 'Requête Microsoft Graph en lecture'),
+  mgRoleMembers:  noiseRule(/^get-mgrolemembers -role \S+$/, 4, 'Requête Microsoft Graph en lecture'),
+  connectMgraph:  noiseRule(/^connect-mgraph -appid \S+ -secret \S+$/, 12, 'Connexion consignée (journal de connexion Entra ID)'),
+  addCredential:  noiseRule(/^add-credential -target \S+$/, 22, "Modification d'annuaire consignée (ajout d'un identifiant d'application)")
+};
+
 // ---------------------------------------------------------
 // SCÉNARIO 01 — KERBEROASTING
 // ---------------------------------------------------------
@@ -12,6 +44,8 @@ SCENARIOS.kerberoast = {
   id:'kerberoast',
   tag:'🎫 SCÉNARIO 01 · KERBEROASTING',
   lessonTag:'📘 LEÇON · SCÉNARIO 01',
+  opsecEnabled:true,
+  noiseRules:[NOISE.netUserAll, NOISE.netUserOne, NOISE.domainUserSpn, NOISE.kerberoast, NOISE.runas],
   startUser:'j.dupont',
 
   identities:{
@@ -112,6 +146,22 @@ SCENARIOS.kerberoast = {
   ],
   flag:'FLAG{kerberoast_svc_backup_operators}',
 
+  // Carte d'attaque (façon BloodHound) : vérité terrain, révélée progressivement.
+  graph:{
+    nodes:[
+      { id:'j.dupont', label:'j.dupont', type:'user' },
+      { id:'a.martin', label:'a.martin', type:'admin' },
+      { id:'svc_backup', label:'svc_backup', type:'service' },
+      { id:'administrator', label:'administrator', type:'admin' },
+      { id:'grp_backupops', label:'Backup Operators', type:'group' }
+    ],
+    edges:[
+      { id:'e_member', from:'svc_backup', to:'grp_backupops', type:'memberof', label:'MemberOf' },
+      { id:'e_bypass', from:'grp_backupops', to:'administrator', type:'abuse', label:'Lecture fichiers (bypass ACL)' },
+      { id:'e_owned', from:'j.dupont', to:'svc_backup', type:'owned', label:'Kerberoast + crack' }
+    ]
+  },
+
   deepDive:{
     why:"Le protocole Kerberos autorise, par conception, tout utilisateur authentifié à demander un ticket de service pour n'importe quel compte possédant un SPN. Ce n'est pas une faille du protocole — c'est son fonctionnement normal. Le seul maillon faible est la robustesse du mot de passe qui chiffre ce ticket.",
     defenses:[
@@ -139,6 +189,7 @@ SCENARIOS.kerberoast = {
     if(lower === 'net user /domain'){
       print(`<span class="out-info">Comptes du domaine CORP.LOCAL :</span>`);
       Object.keys(sc.identities).forEach(name => print(`<span class="out-dim">  ${name}</span>`));
+      AttackGraph.reveal({ nodes:Object.keys(sc.identities) });
       complete('enum');
       return true;
     }
@@ -154,6 +205,7 @@ SCENARIOS.kerberoast = {
       if(u.spn){
         print(`<span class="out-warn">ServicePrincipalName : ${u.spn}</span>`);
         print(`<span class="out-warn">⚠ Ce compte possède un SPN : potentiellement vulnérable au Kerberoasting.</span>`);
+        AttackGraph.reveal({ nodes:['grp_backupops'], edges:['e_member'], tags:{ svc_backup:'spn' } });
         complete('spn');
       }
       return true;
@@ -166,6 +218,7 @@ SCENARIOS.kerberoast = {
         if(u.spn){ print(`<span class="out-warn">  ${name}  —  ${u.spn}</span>`); found = true; }
       });
       if(!found) print(`<span class="out-dim">  (aucun)</span>`);
+      AttackGraph.reveal({ nodes:['grp_backupops'], edges:['e_member'], tags:{ svc_backup:'spn' } });
       complete('spn');
       return true;
     }
@@ -188,6 +241,7 @@ SCENARIOS.kerberoast = {
       print(`<span class="out-info">Tentative de crack du ticket (dictionnaire)...</span>`);
       print(`<span class="out-good">Mot de passe trouvé : ${svc.crackedPassword}</span>`);
       state.extra.crackedHashes['svc_backup'] = svc.crackedPassword;
+      AttackGraph.reveal({ tags:{ svc_backup:'cracked' } });
       complete('crack');
       return true;
     }
@@ -203,6 +257,8 @@ SCENARIOS.kerberoast = {
       state.user = name;
       updatePrompt();
       print(`<span class="out-good">Nouvelle session ouverte en tant que ${sc.identities[name].label}</span>`);
+      AttackGraph.reveal({ edges:['e_owned'] });
+      AttackGraph.markOwned(name);
       complete('access');
       return true;
     }
@@ -212,6 +268,7 @@ SCENARIOS.kerberoast = {
         print(`<span class="out-info"> Répertoire : C:\\Users\\Administrator\\Desktop</span>`);
         print(`<span class="out-dim">  [droits Backup Operators : lecture autorisée malgré les ACL]</span>`);
         print(`<span class="out-dim">  flag.txt</span>`);
+        AttackGraph.reveal({ edges:['e_bypass'] });
       } else if(state.user === 'j.dupont'){
         print(`<span class="out-info"> Répertoire : C:\\Users\\${state.user}\\Desktop</span>`);
         print(`<span class="out-dim">  notes.txt</span>`);
@@ -229,6 +286,7 @@ SCENARIOS.kerberoast = {
         print(`<span class="flag-tag">${sc.flag}</span> <button class="copy-btn" onclick="copyFlag(this)">📋 Copier</button>`);
         print(`<span class="out-good">🎉 Bravo — chaîne complète : énumération → Kerberoasting → crack → abus du groupe Backup Operators.</span>`);
         print(`<span class="out-dim">🛡️ Pour se défendre : mots de passe de service longs/aléatoires (idéalement un gMSA géré automatiquement), et surveiller les demandes de tickets suspectes.</span>`);
+        AttackGraph.markOwned('administrator');
         complete('flag');
         finishMission();
       } else if(file.toLowerCase() === 'flag.txt'){
@@ -255,6 +313,8 @@ SCENARIOS.goldenticket = {
   epic:true,
   tag:'👑 CHAPITRE FINAL · GOLDEN TICKET',
   lessonTag:'📘 LEÇON · CHAPITRE FINAL',
+  opsecEnabled:true,
+  noiseRules:[NOISE.netUserAll, NOISE.netUserOne, NOISE.domainUserSpn, NOISE.kerberoast, NOISE.objectAcl, NOISE.resetPassword, NOISE.runas, NOISE.mimikatzDcsync, NOISE.mimikatzGolden],
   startUser:'j.dupont',
 
   KRBTGT_HASH:'ff87f8f2f8dfd7c0d1ae1c8f9b3a3e51',
@@ -386,6 +446,23 @@ SCENARIOS.goldenticket = {
   ],
   flag:'FLAG{golden_ticket_krbtgt_forged}',
 
+  graph:{
+    nodes:[
+      { id:'j.dupont', label:'j.dupont', type:'user' },
+      { id:'svc_backup', label:'svc_backup', type:'service' },
+      { id:'h.morel', label:'h.morel', type:'admin' },
+      { id:'krbtgt', label:'krbtgt', type:'admin' },
+      { id:'administrator@DC01', label:'Administrator (Golden Ticket)', type:'admin' }
+    ],
+    edges:[
+      { id:'e_pivot1', from:'j.dupont', to:'svc_backup', type:'owned', label:'Kerberoast + crack' },
+      { id:'e_acl', from:'svc_backup', to:'h.morel', type:'abuse', label:'GenericAll (oublié)' },
+      { id:'e_pivot2', from:'svc_backup', to:'h.morel', type:'owned', label:'Reset + accès' },
+      { id:'e_dcsync', from:'h.morel', to:'krbtgt', type:'auth', label:'DCSync' },
+      { id:'e_forge', from:'krbtgt', to:'administrator@DC01', type:'owned', label:'Ticket forgé' }
+    ]
+  },
+
   deepDive:{
     why:"Le compte krbtgt signe cryptographiquement tous les tickets Kerberos du domaine. Sa clé change rarement en pratique, ce qui en fait la cible ultime : qui la possède peut forger une identité illimitée, indépendamment de tout mot de passe utilisateur.",
     defenses:[
@@ -412,6 +489,7 @@ SCENARIOS.goldenticket = {
     if(lower === 'net user /domain'){
       print(`<span class="out-info">Comptes du domaine CORP.LOCAL :</span>`);
       Object.keys(sc.identities).forEach(name => print(`<span class="out-dim">  ${name}</span>`));
+      AttackGraph.reveal({ nodes:Object.keys(sc.identities) });
       complete('enum');
       return true;
     }
@@ -427,6 +505,7 @@ SCENARIOS.goldenticket = {
       if(u.spn){
         print(`<span class="out-warn">ServicePrincipalName : ${u.spn}</span>`);
         print(`<span class="out-warn">⚠ Ce compte possède un SPN : potentiellement vulnérable au Kerberoasting.</span>`);
+        AttackGraph.reveal({ tags:{ svc_backup:'spn' } });
       }
       complete('enum');
       return true;
@@ -439,6 +518,7 @@ SCENARIOS.goldenticket = {
         if(u.spn){ print(`<span class="out-warn">  ${name}  —  ${u.spn}</span>`); found = true; }
       });
       if(!found) print(`<span class="out-dim">  (aucun)</span>`);
+      AttackGraph.reveal({ tags:{ svc_backup:'spn' } });
       complete('enum');
       return true;
     }
@@ -460,6 +540,7 @@ SCENARIOS.goldenticket = {
       print(`<span class="out-info">Tentative de crack du ticket (dictionnaire)...</span>`);
       print(`<span class="out-good">Mot de passe trouvé : ${svc.crackedPassword}</span>`);
       state.extra.crackedHashes['svc_backup'] = svc.crackedPassword;
+      AttackGraph.reveal({ tags:{ svc_backup:'cracked' } });
       complete('kerberoast');
       return true;
     }
@@ -474,7 +555,10 @@ SCENARIOS.goldenticket = {
         if(e.normal){ print(`<span class="out-dim">  ${e.principal} — ${e.rights}</span>`); }
         else { print(`<span class="out-warn">  ${e.principal} — ${e.rights}  ⚠ inhabituel pour ce compte</span>`); }
       });
-      if(entries.some(e => !e.normal)) complete('acl');
+      if(entries.some(e => !e.normal)){
+        AttackGraph.reveal({ edges:['e_acl'] });
+        complete('acl');
+      }
       return true;
     }
 
@@ -490,6 +574,7 @@ SCENARIOS.goldenticket = {
       print(`<span class="out-good">Mot de passe de ${name} réinitialisé avec succès.</span>`);
       state.extra.resetTarget = name;
       state.extra.newPassword = pwd;
+      AttackGraph.reveal({ tags:{ [name]:'reset' } });
       return true;
     }
 
@@ -505,6 +590,8 @@ SCENARIOS.goldenticket = {
         state.user = name;
         updatePrompt();
         print(`<span class="out-good">Nouvelle session ouverte en tant que ${sc.identities[name].label}</span>`);
+        AttackGraph.reveal({ edges:['e_pivot1'] });
+        AttackGraph.markOwned('svc_backup');
         complete('pivot1');
         return true;
       }
@@ -516,6 +603,8 @@ SCENARIOS.goldenticket = {
         state.user = name;
         updatePrompt();
         print(`<span class="out-good">Nouvelle session ouverte en tant que ${sc.identities[name].label}</span>`);
+        AttackGraph.reveal({ edges:['e_pivot2'] });
+        AttackGraph.markOwned('h.morel');
         complete('pivot2');
         return true;
       }
@@ -533,6 +622,7 @@ SCENARIOS.goldenticket = {
       print(`<span class="out-dim">  ${sc.KRBTGT_HASH}</span>`);
       print(`<span class="out-warn">⚠ Cette clé signe TOUS les tickets Kerberos du domaine.</span>`);
       state.extra.krbtgtHash = sc.KRBTGT_HASH;
+      AttackGraph.reveal({ nodes:['krbtgt'], edges:['e_dcsync'], tags:{ krbtgt:'hash' } });
       complete('dcsync');
       return true;
     }
@@ -552,6 +642,8 @@ SCENARIOS.goldenticket = {
       print(`<span class="out-warn">Tu détiens désormais un accès total et persistant au domaine CORP.LOCAL.</span>`);
       state.user = 'administrator@DC01';
       updatePrompt();
+      AttackGraph.reveal({ nodes:['administrator@DC01'], edges:['e_forge'] });
+      AttackGraph.markOwned('administrator@DC01');
       complete('forge');
       return true;
     }
@@ -593,6 +685,8 @@ SCENARIOS.acl = {
   id:'acl',
   tag:'👑 SCÉNARIO 03 · ABUS D\'ACL',
   lessonTag:'📘 LEÇON · SCÉNARIO 03',
+  opsecEnabled:true,
+  noiseRules:[NOISE.netUserAll, NOISE.netUserOne, NOISE.objectAcl, NOISE.resetPassword, NOISE.runas],
   startUser:'j.dupont',
 
   identities:{
@@ -693,6 +787,19 @@ SCENARIOS.acl = {
   ],
   flag:'FLAG{genericall_acl_abuse_domain_admin}',
 
+  graph:{
+    nodes:[
+      { id:'j.dupont', label:'j.dupont', type:'user' },
+      { id:'r.simon', label:'r.simon', type:'user' },
+      { id:'h.morel', label:'h.morel', type:'admin' },
+      { id:'administrator', label:'administrator', type:'admin' }
+    ],
+    edges:[
+      { id:'e_acl', from:'j.dupont', to:'h.morel', type:'abuse', label:'GenericAll (oublié)' },
+      { id:'e_owned', from:'j.dupont', to:'h.morel', type:'owned', label:'Reset + accès' }
+    ]
+  },
+
   deepDive:{
     why:"Les ACL Active Directory permettent une délégation très fine des droits — utile, mais dangereuse si elle n'est jamais auditée. Une permission accordée pour une tâche ponctuelle (dépannage, script d'automatisation, prestataire externe) reste active tant que personne ne la retire explicitement, parfois pendant des années.",
     defenses:[
@@ -719,6 +826,7 @@ SCENARIOS.acl = {
     if(lower === 'net user /domain'){
       print(`<span class="out-info">Comptes du domaine CORP.LOCAL :</span>`);
       Object.keys(sc.identities).forEach(name => print(`<span class="out-dim">  ${name}</span>`));
+      AttackGraph.reveal({ nodes:Object.keys(sc.identities) });
       complete('enum');
       return true;
     }
@@ -751,7 +859,10 @@ SCENARIOS.acl = {
           print(`<span class="out-warn">  ${e.principal} — ${e.rights}  ⚠ inhabituel pour ce compte</span>`);
         }
       });
-      if(entries.some(e => !e.normal)) complete('acl');
+      if(entries.some(e => !e.normal)){
+        AttackGraph.reveal({ edges:['e_acl'] });
+        complete('acl');
+      }
       return true;
     }
 
@@ -768,6 +879,7 @@ SCENARIOS.acl = {
       print(`<span class="out-dim">💡 Aucune alerte de type "mot de passe cassé" ici — c'est une réinitialisation légitime, silencieuse.</span>`);
       state.extra.newPassword = pwd;
       state.extra.resetTarget = name;
+      AttackGraph.reveal({ tags:{ [name]:'reset' } });
       complete('reset');
       return true;
     }
@@ -783,6 +895,8 @@ SCENARIOS.acl = {
       state.user = name;
       updatePrompt();
       print(`<span class="out-good">Nouvelle session ouverte en tant que ${sc.identities[name].label}</span>`);
+      AttackGraph.reveal({ edges:['e_owned'] });
+      AttackGraph.markOwned(name);
       complete('access');
       return true;
     }
@@ -822,6 +936,8 @@ SCENARIOS.pth = {
   id:'pth',
   tag:'🗝️ SCÉNARIO 02 · PASS-THE-HASH',
   lessonTag:'📘 LEÇON · SCÉNARIO 02',
+  opsecEnabled:true,
+  noiseRules:[NOISE.mimikatzLogon, NOISE.pth],
   startUser:'j.dupont',
 
   NTLM_HASH:'8846f7eaee8fb117ad06bdd830b7586c',
@@ -900,6 +1016,19 @@ SCENARIOS.pth = {
   ],
   flag:'FLAG{pth_local_admin_reuse}',
 
+  graph:{
+    nodes:[
+      { id:'j.dupont', label:'j.dupont', type:'user' },
+      { id:'WKS-042', label:'WKS-042', type:'computer' },
+      { id:'administrator@SRV-FILES01', label:'Administrator (local)', type:'admin' },
+      { id:'SRV-FILES01', label:'SRV-FILES01', type:'computer' }
+    ],
+    edges:[
+      { id:'e_hash', from:'WKS-042', to:'administrator@SRV-FILES01', type:'auth', label:'Hash NTLM (mémoire)' },
+      { id:'e_pth', from:'administrator@SRV-FILES01', to:'SRV-FILES01', type:'owned', label:'Pass-the-Hash' }
+    ]
+  },
+
   deepDive:{
     why:"Certains protocoles d'authentification Windows (NTLM notamment) acceptent le hash lui-même comme preuve d'identité — pas besoin de le casser pour retrouver le mot de passe en clair. Si ce hash est valide sur plusieurs machines à cause d'un mot de passe admin local réutilisé, il ouvre toutes les portes équivalentes.",
     defenses:[
@@ -931,6 +1060,7 @@ SCENARIOS.pth = {
       print(`<span class="out-warn">  NTLM     : ${sc.NTLM_HASH}</span>`);
       print(`<span class="out-dim">💡 Un technicien support s'est visiblement connecté ici récemment avec ce compte.</span>`);
       state.extra.dumpedHash = sc.NTLM_HASH;
+      AttackGraph.reveal({ nodes:['WKS-042','administrator@SRV-FILES01'], edges:['e_hash'], tags:{ 'administrator@SRV-FILES01':'hash' } });
       complete('dump');
       return true;
     }
@@ -947,6 +1077,8 @@ SCENARIOS.pth = {
         print(`<span class="out-good">Accès accordé — le mot de passe admin local est bien réutilisé sur ce serveur.</span>`);
         state.user = 'administrator@SRV-FILES01';
         updatePrompt();
+        AttackGraph.reveal({ nodes:['SRV-FILES01'], edges:['e_pth'] });
+        AttackGraph.markOwned('administrator@SRV-FILES01');
         complete('reuse');
         complete('access');
       } else if(target.toUpperCase() !== 'SRV-FILES01'){
@@ -997,7 +1129,15 @@ SCENARIOS.libre = {
   id:'libre',
   tag:'🗺️ MODE LIBRE · DOMAINE OUVERT',
   lessonTag:'📘 LEÇON · MODE LIBRE',
+  opsecEnabled:true,
+  noiseRules:[NOISE.netUserAll, NOISE.netUserOne, NOISE.domainUserSpn, NOISE.kerberoast, NOISE.objectAcl, NOISE.resetPassword, NOISE.runas, NOISE.mimikatzLogon, NOISE.pth],
   startUser:'j.reyes',
+  // Comptes-rôles génériques (surchargés par DomainGen.regenerateLibre() pour le tirage aléatoire) :
+  helpdeskAccount:'t.nguyen',
+  comptaAccount:'k.morel',
+  daAccount:'p.chevalier',
+  companyName:'CORP',
+  seed:null,
 
   identities:{
     'j.reyes':    { label:'CORP\\j.reyes', priv:'Utilisateur standard', groups:['Domain Users'], desc:'Employé — support niveau 1' },
@@ -1145,6 +1285,49 @@ SCENARIOS.libre = {
   ],
   flag:'FLAG{libre_multi_path_domain_admin}',
 
+  // Carte d'attaque : trois chemins distincts vers p.chevalier coexistent.
+  // Un seul sera mis en évidence en "chemin emprunté" (owned), selon le choix du joueur.
+  graph:{
+    nodes:[
+      { id:'j.reyes', label:'j.reyes', type:'user' },
+      { id:'svc_web', label:'svc_web', type:'service' },
+      { id:'svc_sql', label:'svc_sql', type:'service' },
+      { id:'svc_legacy', label:'svc_legacy', type:'service' },
+      { id:'t.nguyen', label:'t.nguyen', type:'user' },
+      { id:'svc_backup', label:'svc_backup', type:'service' },
+      { id:'k.morel', label:'k.morel', type:'user' },
+      { id:'p.chevalier', label:'p.chevalier', type:'admin' },
+      { id:'grp_helpdesk', label:'Helpdesk', type:'group' },
+      { id:'grp_compta', label:'Comptabilité', type:'group' },
+      { id:'grp_serveradmins', label:'Server Admins', type:'group' }
+    ],
+    edges:[
+      { id:'mo_tnguyen', from:'t.nguyen', to:'grp_helpdesk', type:'memberof', label:'MemberOf' },
+      { id:'mo_kmorel', from:'k.morel', to:'grp_compta', type:'memberof', label:'MemberOf' },
+      { id:'mo_backup', from:'svc_backup', to:'grp_serveradmins', type:'memberof', label:'MemberOf (erreur)' },
+      { id:'acl_web_tnguyen', from:'svc_web', to:'t.nguyen', type:'abuse', label:'ForceChangePassword' },
+      { id:'acl_compta_kmorel', from:'grp_compta', to:'k.morel', type:'abuse', label:'GenericAll (impasse)' },
+      { id:'acl_helpdesk_chevalier', from:'grp_helpdesk', to:'p.chevalier', type:'abuse', label:'GenericAll' },
+      { id:'acl_serveradmins_chevalier', from:'grp_serveradmins', to:'p.chevalier', type:'abuse', label:'ForceChangePassword' },
+      { id:'hash_sql_chevalier', from:'svc_sql', to:'p.chevalier', type:'auth', label:'Hash en mémoire' },
+      { id:'owned_pth', from:'svc_sql', to:'p.chevalier', type:'owned', label:'Chemin emprunté (Pass-the-Hash)' },
+      { id:'owned_helpdesk', from:'grp_helpdesk', to:'p.chevalier', type:'owned', label:'Chemin emprunté (Helpdesk)' },
+      { id:'owned_serveradmins', from:'grp_serveradmins', to:'p.chevalier', type:'owned', label:'Chemin emprunté (Server Admins)' }
+    ]
+  },
+  // Comptes -> {node de groupe, arête MemberOf} à révéler quand `net user <nom> /domain` affiche ce compte.
+  graphMemberOf:{
+    't.nguyen':   { node:'grp_helpdesk',     edge:'mo_tnguyen' },
+    'k.morel':    { node:'grp_compta',       edge:'mo_kmorel' },
+    'svc_backup': { node:'grp_serveradmins', edge:'mo_backup' }
+  },
+  // Cible ACL -> arêtes à révéler quand `get-objectacl <cible>` montre une entrée inhabituelle.
+  graphAclEdges:{
+    't.nguyen':    { nodes:[], edges:['acl_web_tnguyen'] },
+    'k.morel':     { nodes:['grp_compta'], edges:['acl_compta_kmorel'] },
+    'p.chevalier': { nodes:['grp_helpdesk','grp_serveradmins'], edges:['acl_helpdesk_chevalier','acl_serveradmins_chevalier'] }
+  },
+
   deepDive:{
     why:"Un domaine Active Directory réel accumule des dizaines de chemins d'attaque potentiels : comptes de service oubliés, ACL déléguées puis jamais nettoyées, mots de passe locaux réutilisés. Bloquer un seul de ces chemins ne suffit presque jamais — un attaquant patient en trouve un autre.",
     defenses:[
@@ -1171,6 +1354,7 @@ SCENARIOS.libre = {
     if(lower === 'net user /domain'){
       print(`<span class="out-info">Comptes du domaine CORP.LOCAL :</span>`);
       Object.keys(sc.identities).forEach(name => print(`<span class="out-dim">  ${name}</span>`));
+      AttackGraph.reveal({ nodes:Object.keys(sc.identities) });
       complete('enum');
       return true;
     }
@@ -1186,11 +1370,14 @@ SCENARIOS.libre = {
       if(u.spn){
         print(`<span class="out-warn">ServicePrincipalName : ${u.spn}</span>`);
         print(`<span class="out-warn">⚠ Ce compte possède un SPN : potentiellement vulnérable au Kerberoasting.</span>`);
+        AttackGraph.reveal({ tags:{ [name]:'spn' } });
         complete('spn');
       }
       if(u.groups.includes('Domain Admins')){
         print(`<span class="out-warn">⚠ Ce compte est administrateur du domaine — une cible de choix.</span>`);
       }
+      const mo = sc.graphMemberOf[name];
+      if(mo) AttackGraph.reveal({ nodes:[mo.node], edges:[mo.edge] });
       complete('enum');
       return true;
     }
@@ -1198,10 +1385,12 @@ SCENARIOS.libre = {
     if(lower === 'get-domainuser -spn' || lower === 'getdomainuser -spn'){
       print(`<span class="out-info">Comptes avec un SPN (Kerberoastables) :</span>`);
       let found = false;
+      const spnTags = {};
       Object.entries(sc.identities).forEach(([name,u])=>{
-        if(u.spn){ print(`<span class="out-warn">  ${name}  —  ${u.spn}</span>`); found = true; }
+        if(u.spn){ print(`<span class="out-warn">  ${name}  —  ${u.spn}</span>`); found = true; spnTags[name] = 'spn'; }
       });
       if(!found) print(`<span class="out-dim">  (aucun)</span>`);
+      AttackGraph.reveal({ tags:spnTags });
       complete('spn');
       return true;
     }
@@ -1232,6 +1421,7 @@ SCENARIOS.libre = {
       print(`<span class="out-info">Tentative de crack du ticket de ${name} (dictionnaire)...</span>`);
       print(`<span class="out-good">Mot de passe trouvé : ${u.crackedPassword}</span>`);
       state.extra.knownPasswords[name] = u.crackedPassword;
+      AttackGraph.reveal({ tags:{ [name]:'cracked' } });
       complete('foothold');
       return true;
     }
@@ -1249,6 +1439,8 @@ SCENARIOS.libre = {
           print(`<span class="out-warn">  ${e.principal} — ${e.rights}  ⚠ inhabituel pour ce compte</span>`);
         }
       });
+      const reveal = sc.graphAclEdges[name];
+      if(reveal) AttackGraph.reveal(reveal);
       return true;
     }
 
@@ -1269,6 +1461,7 @@ SCENARIOS.libre = {
       print(`<span class="out-good">Mot de passe de ${name} réinitialisé avec succès.</span>`);
       state.extra.knownPasswords[name] = pwd;
       if(name === 'p.chevalier') state.extra.privescRoute = matched.viaGroup || matched.principal;
+      AttackGraph.reveal({ tags:{ [name]:'reset' } });
       return true;
     }
 
@@ -1279,11 +1472,12 @@ SCENARIOS.libre = {
       }
       print(`<span class="out-info">Extraction des identifiants en mémoire (LSASS) sur SRV-REPORT01...</span>`);
       print(`<span class="out-dim">Session trouvée :</span>`);
-      print(`<span class="out-warn">  Username : p.chevalier</span>`);
-      print(`<span class="out-warn">  Domain   : CORP (compte de domaine)</span>`);
+      print(`<span class="out-warn">  Username : ${sc.daAccount}</span>`);
+      print(`<span class="out-warn">  Domain   : ${sc.companyName} (compte de domaine)</span>`);
       print(`<span class="out-warn">  NTLM     : ${sc.NTLM_HASH_CHEVALIER}</span>`);
-      print(`<span class="out-dim">💡 La directrice technique s'est visiblement connectée ici récemment pour consulter un rapport.</span>`);
+      print(`<span class="out-dim">💡 La direction technique s'est visiblement connectée ici récemment pour consulter un rapport.</span>`);
       state.extra.dumpedHash = sc.NTLM_HASH_CHEVALIER;
+      AttackGraph.reveal({ edges:['hash_sql_chevalier'], tags:{ [sc.daAccount]:'hash' } });
       return true;
     }
 
@@ -1298,15 +1492,17 @@ SCENARIOS.libre = {
         print(`<span class="out-bad">Hash invalide.</span>`);
         return true;
       }
-      if(user.toLowerCase() !== 'p.chevalier' || target.toLowerCase() !== 'dc01'){
+      if(user.toLowerCase() !== sc.daAccount.toLowerCase() || target.toLowerCase() !== 'dc01'){
         print(`<span class="out-bad">Cible ou compte incorrect pour ce hash.</span>`);
         return true;
       }
       print(`<span class="out-good">Authentification par hash réussie sur DC01.</span>`);
-      state.user = 'p.chevalier';
+      state.user = sc.daAccount;
       state.extra.pathTaken = 'pth';
       updatePrompt();
-      print(`<span class="out-good">Nouvelle session ouverte en tant que ${sc.identities['p.chevalier'].label}</span>`);
+      print(`<span class="out-good">Nouvelle session ouverte en tant que ${sc.identities[sc.daAccount].label}</span>`);
+      AttackGraph.reveal({ edges:['owned_pth'] });
+      AttackGraph.markOwned(sc.daAccount);
       complete('privesc');
       return true;
     }
@@ -1322,20 +1518,25 @@ SCENARIOS.libre = {
       state.user = name;
       updatePrompt();
       print(`<span class="out-good">Nouvelle session ouverte en tant que ${sc.identities[name].label}</span>`);
-      if(name === 'svc_web' || name === 'svc_sql' || name === 'svc_backup') complete('foothold');
-      if(name === 'p.chevalier'){
+      AttackGraph.markOwned(name);
+      if(name === 'svc_web' || name === 'svc_sql' || name === 'svc_backup'){
+        complete('foothold');
+      }
+      if(name === sc.daAccount){
         state.extra.pathTaken = state.extra.privescRoute === 'Server Admins' ? 'acl-serveradmins' : 'acl-helpdesk';
+        AttackGraph.reveal({ edges:[state.extra.pathTaken === 'acl-serveradmins' ? 'owned_serveradmins' : 'owned_helpdesk'] });
+        AttackGraph.markOwned(sc.daAccount);
         complete('privesc');
       }
       return true;
     }
 
     if(lower === 'dir'){
-      if(state.user === 'p.chevalier'){
-        print(`<span class="out-info"> Répertoire : C:\\Users\\p.chevalier\\Desktop</span>`);
+      if(state.user === sc.daAccount){
+        print(`<span class="out-info"> Répertoire : C:\\Users\\${sc.daAccount}\\Desktop</span>`);
         print(`<span class="out-dim">  flag.txt</span>`);
-      } else if(state.user === 'j.reyes'){
-        print(`<span class="out-info"> Répertoire : C:\\Users\\j.reyes\\Desktop</span>`);
+      } else if(state.user === sc.startUser){
+        print(`<span class="out-info"> Répertoire : C:\\Users\\${sc.startUser}\\Desktop</span>`);
         print(`<span class="out-dim">  notes.txt</span>`);
       } else {
         print(`<span class="out-info"> Répertoire : C:\\Users\\${state.user}\\Desktop</span>`);
@@ -1346,18 +1547,18 @@ SCENARIOS.libre = {
 
     if(lower.startsWith('type ')){
       const file = cmd.slice(5).trim();
-      if(file.toLowerCase() === 'flag.txt' && state.user === 'p.chevalier'){
+      if(file.toLowerCase() === 'flag.txt' && state.user === sc.daAccount){
         const routes = {
           pth: {
-            via:"chaîne B : svc_sql → hash en mémoire → Pass-the-Hash direct sur p.chevalier.",
+            via:`chaîne B : svc_sql → hash en mémoire → Pass-the-Hash direct sur ${sc.daAccount}.`,
             chain:[{icon:'🔎',label:'Recon'},{icon:'🎫',label:'svc_sql cassé'},{icon:'🧠',label:'Hash en mémoire'},{icon:'🔁',label:'Pass-the-Hash'},{icon:'👑',label:'Domain Admin'}]
           },
           'acl-helpdesk': {
-            via:"chaîne A : svc_web → ACL oubliée sur t.nguyen → droit hérité du groupe Helpdesk sur p.chevalier.",
+            via:`chaîne A : svc_web → ACL oubliée sur ${sc.helpdeskAccount} → droit hérité du groupe Helpdesk sur ${sc.daAccount}.`,
             chain:[{icon:'🔎',label:'Recon'},{icon:'🎫',label:'svc_web cassé'},{icon:'🗂️',label:'ACL héritée'},{icon:'🔑',label:'Reset mdp'},{icon:'👑',label:'Domain Admin'}]
           },
           'acl-serveradmins': {
-            via:"chaîne C : svc_backup → ajouté par erreur au groupe Server Admins → droit hérité direct sur p.chevalier.",
+            via:`chaîne C : svc_backup → ajouté par erreur au groupe Server Admins → droit hérité direct sur ${sc.daAccount}.`,
             chain:[{icon:'🔎',label:'Recon'},{icon:'🎫',label:'svc_backup cassé'},{icon:'🗂️',label:'Groupe mal attribué'},{icon:'🔑',label:'Reset mdp'},{icon:'👑',label:'Domain Admin'}]
           }
         };
@@ -1370,10 +1571,512 @@ SCENARIOS.libre = {
         finishMission();
       } else if(file.toLowerCase() === 'flag.txt'){
         print(`<span class="out-bad">Accès refusé : ton compte (${state.user}) n'a pas les droits de lecture sur ce fichier.</span>`);
-      } else if(file.toLowerCase() === 'notes.txt' && state.user === 'j.reyes'){
+      } else if(file.toLowerCase() === 'notes.txt' && state.user === sc.startUser){
         print(`<span class="out-dim">"Ticket ouvert : migrer svc_legacy, mot de passe trop ancien à changer un jour. La webapp et le reporting SQL tournent encore avec les mêmes comptes de service depuis 3 ans..." — note du service IT</span>`);
       } else {
         print(`<span class="out-bad">Fichier introuvable : ${escapeHtml(file)}</span>`);
+      }
+      return true;
+    }
+
+    return false;
+  }
+};
+
+// ---------------------------------------------------------
+// SCÉNARIO 04 — CLOUD AD (ENTRA ID) : APPLICATION ADMINISTRATOR → GLOBAL ADMINISTRATOR
+// ---------------------------------------------------------
+SCENARIOS.azuread = {
+  id:'azuread',
+  tag:'☁️ SCÉNARIO 04 · CLOUD AD (ENTRA ID)',
+  lessonTag:'📘 LEÇON · SCÉNARIO 04',
+  opsecEnabled:true,
+  noiseRules:[NOISE.mgAppAll, NOISE.mgAppOne, NOISE.mgRoleMembers, NOISE.connectMgraph, NOISE.addCredential],
+  startUser:'t.rousseau',
+
+  APPS:{
+    'legacy-reporting-app': { clientId:'a1e29d3c-71f2-4a8b-9c3d-1a2b3c4d5e6f', owner:'IT Ops',
+      desc:"Application de reporting interne (dépréciée, migration jamais terminée)" },
+    'automation-sync': { clientId:'f9c47b2e-5a6d-4b91-8d4e-6f5e4d3c2b1a', owner:'IT Ops',
+      desc:"Synchronisation d'annuaire automatisée (tâche planifiée nocturne)" },
+    'portal-frontend': { clientId:'b3d58e41-9c2f-4c7a-9e5f-0a1b2c3d4e5f', owner:'Dev Web',
+      desc:'Frontend du portail interne employés' }
+  },
+  LEGACY_SECRET:'Az$LegacyPipe_2024!',
+  GRANTED_SECRET:'GT-Adm1n-Cr3d-9f2a',
+
+  identities:{
+    't.rousseau':          { label:'corp.onmicrosoft.com\\t.rousseau', priv:'Utilisateur standard (Membre)', groups:['Users'] },
+    'sp-legacy-reporting':  { label:'SP\\legacy-reporting-app', priv:'Service Principal — rôle Application Administrator', groups:['Application Administrator'] },
+    'sp-automation-sync':   { label:'SP\\automation-sync', priv:'Service Principal — rôle Global Administrator', groups:['Global Administrator'] }
+  },
+
+  objectives:[
+    { id:'enum',    text:"Énumérer les App Registrations du tenant" },
+    { id:'leak',    text:'Trouver un secret client exposé dans un pipeline CI/CD' },
+    { id:'auth',    text:"S'authentifier en tant que ce Service Principal" },
+    { id:'privesc', text:"Abuser du rôle Application Administrator pour viser une app plus privilégiée" },
+    { id:'auth2',   text:"S'authentifier en tant que l'app disposant du rôle Global Administrator" },
+    { id:'flag',    text:'Récupérer le secret réservé aux Global Admins' },
+  ],
+
+  hints:[
+    ["Tu es un simple utilisateur du tenant, mais certaines informations restent lisibles par tout le monde — comme la liste des applications.",
+     "Il existe une commande pour lister toutes les App Registrations du tenant — cherche du côté de `get-mgapp`.",
+     "Liste les App Registrations du tenant avec `get-mgapp -all`, puis regarde le détail de chacune avec `get-mgapp <nom>`."],
+    ["Une des applications est décrite comme dépréciée. Les vieux systèmes laissent souvent des restes derrière eux — comme un partage de fichiers DevOps oublié.",
+     "Regarde ce que contient ce partage avec `dir`, puis lis les fichiers qui s'y trouvent.",
+     "Regarde le partage DevOps avec `dir`, puis lis `type azure-pipelines.yml` — un secret client y traîne en clair."],
+    ["Tu as maintenant un identifiant d'application (clientId) et un secret en clair. Une App Registration, ça s'authentifie comme n'importe quel compte.",
+     "Il existe une commande pour se connecter en tant que Service Principal avec un appId et un secret.",
+     "Authentifie-toi avec `connect-mgraph -appid <clientId> -secret <secret>`, en utilisant ce que tu as trouvé dans le pipeline."],
+    ["Regarde d'abord quel rôle d'annuaire est attribué à ce compte de service avec `whoami /priv` — il n'est peut-être pas anodin.",
+     "Le rôle Application Administrator permet d'ajouter un identifiant à n'importe quelle application du tenant, même les plus privilégiées. Reste à savoir laquelle viser — regarde qui détient le rôle Global Administrator.",
+     "Regarde les membres du rôle Global Administrator avec `get-mgrolemembers -role globaladmin`, puis ajoute-toi un identifiant sur l'app trouvée avec `add-credential -target automation-sync`."],
+    ["Le nouvel identifiant que tu viens d'obtenir n'est pas pour ton propre compte.",
+     "Reconnecte-toi en tant que Service Principal, mais avec le nouvel appId et le nouveau secret cette fois.",
+     "`connect-mgraph -appid f9c47b2e-5a6d-4b91-8d4e-6f5e4d3c2b1a -secret GT-Adm1n-Cr3d-9f2a`"],
+    ["Ce compte a maintenant les pleins pouvoirs sur l'annuaire. Regarde ce qu'il peut lire de sensible.",
+     "Un coffre de secrets t'est peut-être accessible maintenant. Regarde autour de toi.",
+     "Regarde le coffre avec `dir` puis `type flag.txt`."]
+  ],
+
+  manPages:{
+    'get-mgapp': { name:'get-mgapp', role:'Interroge les App Registrations du tenant Entra ID',
+      explain:"Sans argument après -all, liste toutes les applications enregistrées dans le tenant (lecture souvent accessible à tout utilisateur standard). Avec un nom d'app, affiche son détail.",
+      usage:'get-mgapp -all   |   get-mgapp <nom>' },
+    'connect-mgraph': { name:'connect-mgraph', role:'Authentifie une session en tant que Service Principal',
+      explain:"Une App Registration s'authentifie auprès de Microsoft Graph avec un identifiant d'application (appId) et un secret client — au même titre qu'un compte utilisateur avec un mot de passe.",
+      usage:'connect-mgraph -appid <clientId> -secret <secret>' },
+    'get-mgrolemembers': { name:'get-mgrolemembers', role:"Liste les membres d'un rôle d'annuaire Entra ID",
+      explain:"Les rôles d'annuaire (Global Administrator, Application Administrator...) peuvent être attribués à des utilisateurs comme à des Service Principals. Attribuer un rôle très privilégié à un compte d'automatisation est une pratique risquée mais fréquente.",
+      usage:'get-mgrolemembers -role <nom>' },
+    'add-credential': { name:'add-credential', role:"Ajoute un secret client à une application existante",
+      explain:"Le rôle Application Administrator permet de gérer les identifiants (secrets, certificats) de la plupart des applications du tenant — y compris celles qui disposent elles-mêmes de rôles plus privilégiés. C'est le cœur de cette élévation de privilèges.",
+      usage:'add-credential -target <nom_app>' }
+  },
+
+  knownCommands:[
+    'help','clear','man ','whoami /priv',
+    'get-mgapp -all','get-mgapp ','get-mgrolemembers -role globaladmin',
+    'connect-mgraph -appid ','add-credential -target ','dir','type '
+  ],
+
+  helpLine:'whoami /priv, get-mgapp -all, get-mgapp &lt;nom&gt;, get-mgrolemembers -role &lt;nom&gt;, connect-mgraph -appid &lt;id&gt; -secret &lt;secret&gt;, add-credential -target &lt;nom_app&gt;, dir, type &lt;fichier&gt;, clear',
+
+  cmdRefHtml:`whoami /priv<br>get-mgapp -all<br>get-mgapp &lt;nom&gt;<br>get-mgrolemembers -role &lt;nom&gt;<br>connect-mgraph -appid &lt;id&gt; -secret &lt;secret&gt;<br>add-credential -target &lt;nom_app&gt;<br>dir<br>type &lt;fichier&gt;<br>help`,
+
+  introLines:[
+    `<span class="out-dim">Azure Cloud Shell [Simulation Entra ID Lab]</span>`,
+    `<span class="out-dim">Connecté en tant que t.rousseau@corp.onmicrosoft.com</span>`,
+    `<span class="out-info">Tape <b>help</b> pour voir les commandes disponibles.</span>`
+  ],
+
+  lessonSlides:[
+    { icon:'☁️', title:"Entra ID : l'annuaire dans le cloud", html:
+      `<p>CORP a migré son annuaire vers <b>Entra ID</b> (l'ex-Azure AD), le tenant cloud de Microsoft. Les utilisateurs et les machines existent toujours, mais les applications aussi ont désormais une identité : l'<b>App Registration</b>, représentée par un <b>Service Principal</b>.</p>
+       <p>Comme sur site, l'objectif d'un attaquant reste le même : remonter depuis un compte à faibles privilèges jusqu'au compte aux pleins pouvoirs — ici, le rôle <b>Global Administrator</b>.</p>` },
+    { icon:'🔑', title:'App Registrations & secrets clients', html:
+      `<p>Une application s'authentifie auprès de Microsoft Graph avec un <b>clientId</b> et un <b>secret</b> — l'équivalent d'un identifiant et d'un mot de passe. Ce secret est souvent stocké dans des <b>pipelines CI/CD</b>, et parfois oublié en clair après un projet abandonné.</p>
+       <p>Contrairement à un utilisateur, une application n'a ni MFA ni comportement suspect à surveiller : un secret volé s'utilise directement.</p>` },
+    { icon:'🪜', title:"L'attaque : Application Administrator → Global Administrator", html:
+      `<p>Le rôle <b>Application Administrator</b> permet de gérer les identifiants de la plupart des applications du tenant — <b>y compris celles qui ont elles-mêmes des rôles plus puissants</b>. Ajouter un secret à une telle application, c'est en devenir l'équivalent.</p>
+       <p>Un piège classique : attribuer le rôle <b>Global Administrator</b> directement à un compte d'automatisation "pour simplifier", en pensant qu'un Service Principal ne se fait pas voler ses identifiants. C'est exactement ce qui s'est passé ici.</p>` },
+    { icon:'📋', title:'Ta mission', html:
+      `<p>Tu es <b>t.rousseau</b>, employé standard sur le tenant <b>corp.onmicrosoft.com</b>. Trouve une application vulnérable, obtiens ses identifiants, et vois jusqu'où son rôle d'annuaire te mène.</p>
+       <p class="lesson-tip">💡 Tape <b>help</b> une fois dans le terminal, ou <b>man &lt;commande&gt;</b> pour comprendre une commande précise.</p>` }
+  ],
+
+  completeTitle:'Tenant Entra ID compromis',
+  completeSub:"Secret d'application fuité, rôle Application Administrator abusé jusqu'au Global Admin.",
+  chainSteps:[
+    {icon:'🔎', label:'Enum apps'}, {icon:'📄', label:'Secret fuité'},
+    {icon:'🔑', label:'Auth SP'}, {icon:'🪜', label:'App Admin → Global Admin'}, {icon:'☁️', label:'Flag'}
+  ],
+  flag:'FLAG{entra_appadmin_privesc_globaladmin}',
+
+  graph:{
+    nodes:[
+      { id:'t.rousseau', label:'t.rousseau', type:'user' },
+      { id:'sp-legacy-reporting', label:'legacy-reporting-app', type:'app' },
+      { id:'sp-automation-sync', label:'automation-sync', type:'app' },
+      { id:'portal-frontend', label:'portal-frontend', type:'app' },
+      { id:'role_globaladmin', label:'Global Administrator', type:'group' }
+    ],
+    edges:[
+      { id:'e_leak', from:'t.rousseau', to:'sp-legacy-reporting', type:'auth', label:'Secret CI/CD fuité' },
+      { id:'e_role', from:'role_globaladmin', to:'sp-automation-sync', type:'memberof', label:'Rôle attribué (sans MFA)' },
+      { id:'e_privesc', from:'sp-legacy-reporting', to:'sp-automation-sync', type:'abuse', label:'AddCredential (App Admin)' }
+    ]
+  },
+
+  deepDive:{
+    why:"Le rôle Application Administrator est conçu pour administrer les applications du tenant, ce qui inclut la gestion de leurs identifiants (secrets, certificats). Rien n'empêche par conception d'ajouter un identifiant à une application qui dispose elle-même d'un rôle plus privilégié : le titulaire du rôle Application Administrator peut donc emprunter l'identité de n'importe quelle application moins protégée. Le vrai problème ici est l'attribution du rôle Global Administrator directement à un Service Principal d'automatisation, sans protection particulière.",
+    defenses:[
+      "Ne jamais attribuer un rôle d'annuaire très privilégié (Global Administrator) directement à un Service Principal ou un compte d'automatisation",
+      "Restreindre l'attribution du rôle Application Administrator (lui-même sensible) aux seules personnes qui en ont réellement besoin",
+      "Protéger les applications sensibles avec des groupes à assignation de rôle protégée (Restricted Management Administrative Units / Role-Assignable Groups)",
+      "Bannir les secrets en clair dans les pipelines CI/CD : privilégier Key Vault, l'identité managée (Managed Identity), ou l'authentification par certificat",
+      "Activer Privileged Identity Management (PIM) pour rendre les rôles privilégiés temporaires, justifiés et audités plutôt que permanents"
+    ]
+  },
+
+  initState(){ return { grantedSecret:null }; },
+
+  handle(lower, cmd, m){
+    const sc = SCENARIOS.azuread;
+
+    if(lower === 'whoami /priv' || lower === 'whoami'){
+      const u = sc.identities[state.user];
+      print(`<span class="out-info">Identité : ${u.label}</span>`);
+      print(`<span class="out-info">Rôle : ${u.priv}</span>`);
+      print(`<span class="out-info">Rôles d'annuaire : ${u.groups.join(', ')}</span>`);
+      return true;
+    }
+
+    if(lower === 'get-mgapp -all'){
+      print(`<span class="out-info">App Registrations du tenant corp.onmicrosoft.com :</span>`);
+      Object.keys(sc.APPS).forEach(name => {
+        const a = sc.APPS[name];
+        print(`<span class="out-dim">  ${name} — clientId: ${a.clientId} — propriétaire: ${a.owner}</span>`);
+      });
+      AttackGraph.reveal({ nodes:['sp-legacy-reporting','sp-automation-sync','portal-frontend'] });
+      complete('enum');
+      return true;
+    }
+
+    m = cmd.match(/^get-mgapp (\S+)$/i);
+    if(m){
+      const name = m[1].toLowerCase();
+      const app = sc.APPS[name];
+      if(!app){ print(`<span class="out-bad">Application introuvable : ${escapeHtml(m[1])}</span>`); return true; }
+      print(`<span class="out-info"><b>${name}</b></span>`);
+      print(`<span class="out-dim">clientId : ${app.clientId}</span>`);
+      print(`<span class="out-dim">Propriétaire : ${app.owner}</span>`);
+      print(`<span class="out-dim">Description : ${app.desc}</span>`);
+      if(name === 'legacy-reporting-app'){
+        print(`<span class="out-warn">🔎 Note : ce compte de service est référencé dans un ancien pipeline de déploiement CI/CD, jamais nettoyé après la dépréciation de l'appli.</span>`);
+      }
+      return true;
+    }
+
+    if(lower === 'get-mgrolemembers -role globaladmin'){
+      print(`<span class="out-info">Membres du rôle Global Administrator :</span>`);
+      print(`<span class="out-dim">  a.moreau — Utilisateur, Directrice IT (MFA activée)</span>`);
+      print(`<span class="out-warn">  automation-sync — Service Principal (rôle attribué directement, sans MFA ni surveillance particulière)</span>`);
+      print(`<span class="out-dim">💡 Un compte humain avec MFA est une cible difficile. Le Service Principal, beaucoup moins.</span>`);
+      AttackGraph.reveal({ nodes:['role_globaladmin'], edges:['e_role'] });
+      return true;
+    }
+
+    m = cmd.match(/^connect-mgraph -appid (\S+) -secret (\S+)$/i);
+    if(m){
+      const [, appid, secret] = m;
+      if(appid.toLowerCase() === sc.APPS['legacy-reporting-app'].clientId.toLowerCase() && secret === sc.LEGACY_SECRET){
+        print(`<span class="out-info">Authentification auprès de Microsoft Graph...</span>`);
+        print(`<span class="out-good">Accès accordé — connecté en tant que Service Principal legacy-reporting-app.</span>`);
+        state.user = 'sp-legacy-reporting';
+        updatePrompt();
+        AttackGraph.reveal({ edges:['e_leak'] });
+        AttackGraph.markOwned('sp-legacy-reporting');
+        complete('auth');
+      } else if(state.extra.grantedSecret && appid.toLowerCase() === sc.APPS['automation-sync'].clientId.toLowerCase() && secret === state.extra.grantedSecret){
+        print(`<span class="out-info">Authentification auprès de Microsoft Graph...</span>`);
+        print(`<span class="out-good">Accès accordé — connecté en tant que Service Principal automation-sync.</span>`);
+        state.user = 'sp-automation-sync';
+        updatePrompt();
+        AttackGraph.markOwned('sp-automation-sync');
+        complete('auth2');
+      } else {
+        print(`<span class="out-bad">Authentification refusée : appId ou secret invalide.</span>`);
+      }
+      return true;
+    }
+
+    m = cmd.match(/^add-credential -target (\S+)$/i);
+    if(m){
+      const target = m[1].toLowerCase();
+      if(state.user !== 'sp-legacy-reporting'){
+        print(`<span class="out-bad">Accès refusé : ton compte actuel n'a pas le rôle Application Administrator.</span>`);
+        return true;
+      }
+      if(!sc.APPS[target]){
+        print(`<span class="out-bad">Application introuvable : ${escapeHtml(m[1])}</span>`);
+        return true;
+      }
+      if(target === 'automation-sync'){
+        state.extra.grantedSecret = sc.GRANTED_SECRET;
+        print(`<span class="out-good">Nouveau secret client ajouté à automation-sync.</span>`);
+        print(`<span class="out-warn">  clientId : ${sc.APPS['automation-sync'].clientId}</span>`);
+        print(`<span class="out-warn">  secret   : ${sc.GRANTED_SECRET}</span>`);
+        AttackGraph.reveal({ edges:['e_privesc'] });
+        complete('privesc');
+      } else {
+        print(`<span class="out-info">Identifiant ajouté, mais cette application n'a aucun rôle d'annuaire privilégié — impasse.</span>`);
+      }
+      return true;
+    }
+
+    if(lower === 'dir'){
+      if(state.user === 't.rousseau'){
+        print(`<span class="out-info"> Partage réseau : \\\\SHARE-DEVOPS01\\Pipelines</span>`);
+        print(`<span class="out-dim">  azure-pipelines.yml</span>`);
+        print(`<span class="out-dim">  README.md</span>`);
+      } else if(state.user === 'sp-automation-sync'){
+        print(`<span class="out-info"> Coffre de secrets : kv-corp-secrets</span>`);
+        print(`<span class="out-dim">  flag.txt</span>`);
+      } else {
+        print(`<span class="out-dim">(rien d'exploitable ici avec ce compte)</span>`);
+      }
+      return true;
+    }
+
+    if(lower.startsWith('type ')){
+      const file = cmd.slice(5).trim();
+      if(file.toLowerCase() === 'azure-pipelines.yml' && state.user === 't.rousseau'){
+        print(`<span class="out-dim">steps:</span>`);
+        print(`<span class="out-dim">  - task: AzureCLI@2</span>`);
+        print(`<span class="out-dim">    inputs:</span>`);
+        print(`<span class="out-dim">      # TODO: migrer vers un Service Connection propre — Jean, 2022</span>`);
+        print(`<span class="out-warn">      clientId: '${sc.APPS['legacy-reporting-app'].clientId}'</span>`);
+        print(`<span class="out-warn">      clientSecret: '${sc.LEGACY_SECRET}'</span>`);
+        AttackGraph.reveal({ tags:{ 'sp-legacy-reporting':'leak' } });
+        complete('leak');
+      } else if(file.toLowerCase() === 'readme.md' && state.user === 't.rousseau'){
+        print(`<span class="out-dim">"Pipeline hérité de l'ancienne stack de reporting. Ne pas toucher sans prévenir l'équipe Legacy." — README du dépôt</span>`);
+      } else if(file.toLowerCase() === 'flag.txt' && state.user === 'sp-automation-sync'){
+        print(`<span class="flag-tag">${sc.flag}</span> <button class="copy-btn" onclick="copyFlag(this)">📋 Copier</button>`);
+        print(`<span class="out-good">🎉 Bravo — chaîne complète : secret fuité → Application Administrator → identifiant ajouté à un Service Principal Global Admin.</span>`);
+        print(`<span class="out-dim">🛡️ Pour se défendre : jamais de rôle privilégié direct sur un compte d'automatisation, et surveillance des rôles sensibles via PIM (voir "En savoir plus").</span>`);
+        complete('flag');
+        finishMission();
+      } else if(file.toLowerCase() === 'flag.txt'){
+        print(`<span class="out-bad">Accès refusé : ton compte (${state.user}) n'a pas les droits nécessaires sur ce coffre.</span>`);
+      } else {
+        print(`<span class="out-bad">Fichier introuvable : ${escapeHtml(file)}</span>`);
+      }
+      return true;
+    }
+
+    return false;
+  }
+};
+
+// ---------------------------------------------------------
+// MODE BLUE TEAM — CÔTÉ DÉFENSE : ANALYSTE SOC
+// Complément pédagogique du mode attaque : le joueur ne compromet
+// rien, il enquête sur une compromission déjà survenue à partir de
+// journaux (fictifs), doit identifier la technique, le compte
+// touché, et reconstituer la chronologie des événements.
+// ---------------------------------------------------------
+SCENARIOS.blueteam = {
+  id:'blueteam',
+  tag:'🛰️ MODE BLUE TEAM · ANALYSTE SOC',
+  lessonTag:'📘 LEÇON · MODE BLUE TEAM',
+  opsecEnabled:false,
+  noiseRules:[],
+  startUser:'t.leroux',
+
+  identities:{
+    't.leroux': { label:'SOC\\t.leroux', priv:'Analyste sécurité', groups:['SOC Tier 1'], desc:'Analyste SOC — équipe de garde, ticket INC-2024-0417' }
+  },
+
+  // Vérité terrain des événements — clé = identifiant affiché (EVT-X).
+  // L'ordre chronologique réel se lit uniquement à l'horodatage, pas à
+  // l'ordre d'affichage (volontairement mélangé dans security.log).
+  EVENTS:{
+    A:{ time:'02:50:10', text:'EventID 4769 (Ticket de service demandé) — Compte demandeur : k.morel — SPN visé : MSSQLSvc/sql-report.corp.local:1433 — Chiffrement : AES256-CTS-HMAC-SHA1' },
+    B:{ time:'03:12:04', text:'EventID 4769 (Ticket de service demandé) — Compte demandeur : j.dupont — SPN visé : MSSQLSvc/sql01.corp.local:1433 (svc_backup) — Chiffrement : RC4-HMAC ⚠ legacy' },
+    C:{ time:'03:14:47', text:"EventID 4624 (Ouverture de session réussie) — Compte : svc_backup — Poste source : WKS-042 — Type d'ouverture : 3 (réseau)" },
+    D:{ time:'03:15:02', text:"EventID 4663 (Tentative d'accès à un objet) — Compte : svc_backup — Objet : C:\\Users\\Administrator\\Desktop\\flag.txt — Droit : ReadData — Résultat : Autorisé (membre Backup Operators)" }
+  },
+  EVENTS_DISPLAY_ORDER:['C','A','D','B'],
+  CORRECT_ORDER:'a,b,c,d',
+  CORRECT_TECHNIQUE:['kerberoasting','kerberoast'],
+  CORRECT_ACCOUNT:'svc_backup',
+
+  objectives:[
+    { id:'investigate', text:"Consulter les journaux de l'incident" },
+    { id:'technique',   text:"Identifier la technique d'attaque utilisée" },
+    { id:'account',     text:'Identifier le compte compromis' },
+    { id:'timeline',    text:'Reconstituer la chronologie des événements' },
+    { id:'flag',        text:"Clôturer l'incident (rapport complet)" },
+  ],
+
+  hints:[
+    ["Avant de conclure quoi que ce soit, regarde ce qui se trouve dans ce dossier d'incident.",
+     "Il y a un journal de sécurité dans ce dossier — regarde son contenu.",
+     "Commence par `dir`, puis `type security.log` pour lire les événements corrélés à l'alerte."],
+    ["Un des événements a un détail technique qui ne colle pas avec les autres.",
+     "Compare le type de chiffrement utilisé dans chaque demande de ticket Kerberos (EventID 4769). Un des deux est nettement plus ancien/faible que l'autre.",
+     "Le chiffrement RC4-HMAC sur un des événements 4769, alors que l'autre utilise AES256, est le signal classique du Kerberoasting — soumets ta conclusion avec `report --technique kerberoasting`."],
+    ["Regarde quel compte est directement visé par l'événement suspect, puis ce qui lui arrive juste après dans le journal.",
+     "Le compte visé par la demande de ticket au chiffrement faible est aussi celui qui ouvre une session juste après, sur un poste inattendu.",
+     "Le compte compromis est svc_backup — soumets-le avec `report --account svc_backup`."],
+    ["Les événements ne sont pas affichés dans l'ordre chronologique du journal — base-toi sur les horodatages, pas sur l'ordre d'affichage.",
+     "Classe les 4 événements du plus ancien au plus récent d'après leur heure exacte.",
+     "Chronologie correcte, du plus ancien au plus récent : `report --order a,b,c,d`"],
+    ["Une fois les trois éléments du rapport soumis et corrects, il ne reste plus qu'à clôturer le dossier.",
+     "Il existe une commande dédiée pour clôturer une investigation terminée.",
+     "Clôture le dossier avec `close-incident`."]
+  ],
+
+  manPages:{
+    'dir': { name:'dir', role:"Liste le contenu du dossier d'incident",
+      explain:"Affiche les pièces jointes au ticket d'investigation en cours (journaux, notes).",
+      usage:'dir' },
+    'type': { name:'type', role:"Affiche le contenu d'une pièce du dossier",
+      explain:"Sous Windows, l'équivalent de 'cat'. Utilise-la sur chaque fichier du dossier d'incident.",
+      usage:'type <fichier>' },
+    'report': { name:'report', role:"Soumets une conclusion d'investigation",
+      explain:"Chaque sous-commande correspond à une partie du rapport : la technique utilisée, le compte compromis, ou la chronologie des événements (par leurs identifiants EVT-X, du plus ancien au plus récent, séparés par des virgules).",
+      usage:'report --technique <valeur>   |   report --account <valeur>   |   report --order <a,b,c,...>' },
+    'close-incident': { name:'close-incident', role:"Clôture le dossier d'investigation",
+      explain:"Ne fonctionne que si les trois éléments du rapport (technique, compte, chronologie) ont déjà été soumis et sont corrects.",
+      usage:'close-incident' }
+  },
+
+  knownCommands:[
+    'help','clear','man ','whoami /priv','dir','type ',
+    'report --technique ','report --account ','report --order ','close-incident'
+  ],
+
+  helpLine:'whoami /priv, dir, type &lt;fichier&gt;, report --technique &lt;valeur&gt;, report --account &lt;valeur&gt;, report --order &lt;a,b,c,...&gt;, close-incident, clear',
+
+  cmdRefHtml:`whoami /priv<br>dir<br>type &lt;fichier&gt;<br>report --technique &lt;valeur&gt;<br>report --account &lt;valeur&gt;<br>report --order &lt;a,b,c,...&gt;<br>close-incident<br>help`,
+
+  introLines:[
+    `<span class="out-dim">SOC Console [Simulation Lab]</span>`,
+    `<span class="out-warn">🛰️ Ticket ouvert : INC-2024-0417 — pic anormal de demandes de tickets Kerberos cette nuit.</span>`,
+    `<span class="out-dim">Connecté en tant que SOC\\t.leroux</span>`,
+    `<span class="out-info">Tape <b>help</b> pour voir les commandes disponibles.</span>`
+  ],
+
+  lessonSlides:[
+    { icon:'🛰️', title:'Changer de côté : la perspective SOC', html:
+      `<p>Jusqu'ici, tu as joué l'attaquant. Ce mode inverse les rôles : tu es désormais <b>analyste au centre des opérations de sécurité (SOC)</b>, et une compromission a peut-être déjà eu lieu.</p>
+       <p>Pas de terminal à compromettre ici — juste des journaux à lire, et des conclusions à soumettre.</p>` },
+    { icon:'📄', title:'Tous les tickets Kerberos ne sont pas suspects', html:
+      `<p>Un contrôleur de domaine génère des <b>centaines</b> d'événements 4769 (demande de ticket de service) chaque jour — la quasi-totalité sont parfaitement légitimes.</p>
+       <p>Le travail d'un analyste n'est pas de tout regarder avec suspicion, mais de repérer le <b>détail qui cloche</b> : un type de chiffrement inhabituel, un compte qui n'a rien à faire là, un horaire incongru.</p>` },
+    { icon:'🧭', title:"La chronologie, l'outil de l'analyste", html:
+      `<p>Un événement isolé ne prouve presque jamais rien. C'est la <b>corrélation</b> entre plusieurs événements — dans le bon ordre — qui raconte l'histoire complète d'une attaque.</p>
+       <p>Reconstituer une chronologie précise est au cœur de tout vrai rapport d'incident : elle seule permet de dire ce qui s'est passé, dans quel ordre, et jusqu'où l'attaquant est allé.</p>` },
+    { icon:'📋', title:'Ta mission', html:
+      `<p>Tu es <b>SOC\\t.leroux</b>. Une alerte s'est déclenchée cette nuit. Consulte le journal de l'incident, identifie la technique utilisée, le compte compromis, et remets les événements dans le bon ordre — puis clôture le dossier.</p>
+       <p class="lesson-tip">💡 Tape <b>help</b> une fois dans le terminal, ou <b>man &lt;commande&gt;</b> pour comprendre une commande précise.</p>` }
+  ],
+
+  completeTitle:'Incident résolu',
+  completeSub:"Kerberoasting détecté et documenté avant l'escalade.",
+  chainSteps:[
+    {icon:'📄', label:'Logs lus'}, {icon:'🔍', label:'Technique'},
+    {icon:'🧭', label:'Chronologie'}, {icon:'📝', label:'Rapport clos'}
+  ],
+  flag:'FLAG{blueteam_kerberoast_detected}',
+
+  deepDive:{
+    why:"Le Kerberoasting laisse des traces discrètes mais réelles : une demande de ticket de service (Event ID 4769) chiffrée en RC4 alors que le reste de l'environnement utilise AES est un signal fort, surtout suivie de près par une ouverture de session et un accès fichier inhabituels pour ce compte. Aucun de ces événements pris isolément ne prouve une attaque — c'est leur corrélation, dans le bon ordre, qui la révèle.",
+    defenses:[
+      "Alerter spécifiquement sur les tickets Kerberos chiffrés en RC4 (type 0x17) quand l'environnement est censé n'utiliser que l'AES",
+      "Corréler automatiquement les événements 4769 / 4624 / 4663 dans une fenêtre de temps courte pour un même compte",
+      "Établir une base de référence du volume normal de demandes de ticket par compte de service, pour repérer les écarts",
+      "Documenter systématiquement une chronologie précise (et non un simple constat) dans chaque rapport d'incident",
+      "Déployer des comptes de service gérés (gMSA) : la cause racine ici reste un mot de passe de service faible"
+    ]
+  },
+
+  initState(){ return { technique:false, account:false, timeline:false }; },
+
+  handle(lower, cmd, m){
+    const sc = SCENARIOS.blueteam;
+
+    if(lower === 'whoami /priv' || lower === 'whoami'){
+      const u = sc.identities[state.user];
+      print(`<span class="out-info">Utilisateur : ${u.label}</span>`);
+      print(`<span class="out-info">Rôle : ${u.priv}</span>`);
+      print(`<span class="out-info">Groupes : ${u.groups.join(', ')}</span>`);
+      return true;
+    }
+
+    if(lower === 'dir'){
+      print(`<span class="out-info"> Dossier d'incident : INC-2024-0417</span>`);
+      print(`<span class="out-dim">  security.log</span>`);
+      print(`<span class="out-dim">  readme.txt</span>`);
+      return true;
+    }
+
+    if(lower.startsWith('type ')){
+      const file = cmd.slice(5).trim().toLowerCase();
+      if(file === 'readme.txt'){
+        print(`<span class="out-dim">"Alerte SIEM déclenchée à 03:12 : pic anormal de demandes de tickets Kerberos sur CORP.LOCAL. Détermine s'il s'agit d'une attaque, laquelle, quel compte est concerné, et reconstitue la chronologie complète avant de clôturer le ticket." — Notes d'astreinte</span>`);
+        return true;
+      }
+      if(file === 'security.log'){
+        print(`<span class="out-info">Journal de sécurité — événements corrélés à l'alerte (ordre d'affichage non chronologique) :</span>`);
+        sc.EVENTS_DISPLAY_ORDER.forEach(key=>{
+          const e = sc.EVENTS[key];
+          print(`<span class="out-warn">[EVT-${key}]</span> <span class="out-dim">${e.time} — ${e.text}</span>`);
+        });
+        complete('investigate');
+        return true;
+      }
+      print(`<span class="out-bad">Fichier introuvable : ${escapeHtml(cmd.slice(5).trim())}</span>`);
+      return true;
+    }
+
+    m = lower.match(/^report --technique (.+)$/);
+    if(m){
+      const val = m[1].trim();
+      if(sc.CORRECT_TECHNIQUE.includes(val)){
+        print(`<span class="out-good">✓ Technique confirmée : Kerberoasting.</span>`);
+        state.extra.technique = true;
+        complete('technique');
+      } else {
+        print(`<span class="out-bad">Ça ne correspond pas à ce que montrent les journaux. Relis security.log et compare les chiffrements des événements 4769.</span>`);
+      }
+      return true;
+    }
+
+    m = lower.match(/^report --account (.+)$/);
+    if(m){
+      const val = m[1].trim();
+      if(val === sc.CORRECT_ACCOUNT){
+        print(`<span class="out-good">✓ Compte compromis confirmé : ${sc.CORRECT_ACCOUNT}.</span>`);
+        state.extra.account = true;
+        complete('account');
+      } else {
+        print(`<span class="out-bad">Ce n'est pas le compte visé par l'événement suspect. Regarde à nouveau qui est concerné par le ticket au chiffrement faible, et ce qui lui arrive juste après.</span>`);
+      }
+      return true;
+    }
+
+    m = lower.match(/^report --order (.+)$/);
+    if(m){
+      const val = m[1].trim().replace(/\s+/g,'').toLowerCase();
+      if(val === sc.CORRECT_ORDER){
+        print(`<span class="out-good">✓ Chronologie confirmée : EVT-A → EVT-B → EVT-C → EVT-D.</span>`);
+        state.extra.timeline = true;
+        complete('timeline');
+      } else {
+        print(`<span class="out-bad">Cet ordre ne correspond pas aux horodatages du journal. Reprends chaque événement et classe-les uniquement par leur heure exacte.</span>`);
+      }
+      return true;
+    }
+
+    if(lower === 'close-incident'){
+      if(state.extra.technique && state.extra.account && state.extra.timeline){
+        print(`<span class="flag-tag">${sc.flag}</span> <button class="copy-btn" onclick="copyFlag(this)">📋 Copier</button>`);
+        print(`<span class="out-good">🎉 Bravo — incident correctement qualifié : Kerberoasting sur svc_backup, chronologie complète, dossier clôturé.</span>`);
+        print(`<span class="out-dim">🛡️ Pour aller plus loin : voir "En savoir plus" pour les recommandations de détection.</span>`);
+        complete('flag');
+        finishMission();
+      } else {
+        const missing = [];
+        if(!state.extra.technique) missing.push('la technique');
+        if(!state.extra.account) missing.push('le compte compromis');
+        if(!state.extra.timeline) missing.push('la chronologie');
+        print(`<span class="out-bad">Dossier incomplet — il te manque encore : ${missing.join(', ')}.</span>`);
       }
       return true;
     }

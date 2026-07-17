@@ -234,10 +234,11 @@ const ACHIEVEMENTS = [
   { id:'curious',       icon:'🧠', title:'Curieux',         desc:"Consulter man au moins 3 fois dans une mission" },
   { id:'both_paths',    icon:'🧭', title:'Les deux routes', desc:"Terminer le mode libre par ses deux chemins" },
   { id:'golden_finisher',icon:'👑', title:'Golden Ticket',  desc:"Terminer le Chapitre Final" },
-  { id:'domain_master', icon:'🏆', title:'Maître du domaine', desc:"Terminer les 5 scénarios" },
+  { id:'domain_master', icon:'🏆', title:'Maître du domaine', desc:"Terminer tous les scénarios" },
+  { id:'ghost',         icon:'🥷', title:'Fantôme',          desc:"Terminer une mission sans jamais déclencher l'alerte SOC" },
 ];
 
-function unlockAchievements({ scenarioId, elapsed, hintsUsed, manCount, pathTaken }){
+function unlockAchievements({ scenarioId, elapsed, hintsUsed, manCount, pathTaken, opsecEnabled, detected }){
   const newlyUnlocked = [];
   const unlock = (id) => {
     if(!achievements[id]){
@@ -251,6 +252,7 @@ function unlockAchievements({ scenarioId, elapsed, hintsUsed, manCount, pathTake
   if(elapsed < 45) unlock('speedster');
   if(manCount >= 3) unlock('curious');
   if(scenarioId === 'goldenticket') unlock('golden_finisher');
+  if(opsecEnabled && !detected) unlock('ghost');
 
   if(scenarioId === 'libre' && pathTaken){
     librePaths[pathTaken] = true;
@@ -349,6 +351,21 @@ function updateHomeBadges(){
 
 function goToLesson(scenarioId){
   lessonScenarioId = scenarioId;
+
+  const seedPanel = document.getElementById('libre-seed-panel');
+  if(scenarioId === 'libre'){
+    const seed = DomainGen.regenerateLibre();
+    updateLibreSeedDisplay(seed);
+    if(seedPanel) seedPanel.style.display = '';
+  } else if(seedPanel){
+    seedPanel.style.display = 'none';
+  }
+
+  renderLessonView(scenarioId);
+}
+
+// Redessine la leçon sans retirer un nouveau domaine (utilisé après reroll/chargement de seed).
+function renderLessonView(scenarioId){
   const sc = SCENARIOS[scenarioId];
 
   document.getElementById('lesson-tag').textContent = sc.lessonTag;
@@ -366,6 +383,29 @@ function goToLesson(scenarioId){
   currentSlide = 0;
   showView('view-lesson');
   renderSlide();
+}
+
+function updateLibreSeedDisplay(seed){
+  const el = document.getElementById('libre-seed-code');
+  if(el) el.textContent = seed;
+  const input = document.getElementById('libre-seed-input');
+  if(input) input.value = '';
+}
+
+function rerollLibreDomain(){
+  const seed = DomainGen.regenerateLibre();
+  updateLibreSeedDisplay(seed);
+  // Le nom du domaine/employés a changé : on redessine la diapo de mission (sans re-tirer).
+  if(lessonScenarioId === 'libre') renderLessonView('libre');
+}
+
+function loadLibreSeed(){
+  const input = document.getElementById('libre-seed-input');
+  const val = input ? input.value.trim() : '';
+  if(!val) return;
+  const seed = DomainGen.regenerateLibre(val);
+  updateLibreSeedDisplay(seed);
+  if(lessonScenarioId === 'libre') renderLessonView('libre');
 }
 
 function renderSlide(){
