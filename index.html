@@ -45,6 +45,10 @@
       <button class="io-link" onclick="document.getElementById('import-file-input').click()">⬆ Importer</button>
       <input type="file" id="import-file-input" accept="application/json" style="display:none;" onchange="importProgress(this.files[0])">
     </div>
+    <div class="progress-io">
+      <button class="io-link" onclick="document.getElementById('replay-file-input').click()">📼 Regarder un replay</button>
+      <input type="file" id="replay-file-input" accept="application/json" style="display:none;" onchange="startReplayFromFile(this.files[0]); this.value='';">
+    </div>
 
     <button class="expert-toggle" id="expert-toggle" onclick="toggleExpertMode()" role="switch" aria-checked="false">
       <span class="expert-switch" id="expert-switch" aria-hidden="true"></span>
@@ -255,10 +259,12 @@ Ticket obtenu. Prêt à cracker.</div>
 <section id="view-game" class="view" tabindex="-1" aria-label="Mission en cours">
   <div class="game-shell">
     <div class="game-header">
-      <button class="back-link" onclick="backHome()">← Retour</button>
+      <button class="back-link" id="game-back-btn" onclick="backHome()">← Retour</button>
       <div class="scenario-tag" id="game-tag">🎫 SCÉNARIO 01 · KERBEROASTING</div>
+      <span id="replay-badge" class="replay-badge" style="display:none;">📼 Lecture d'un replay…</span>
       <div id="mission-timer" class="mission-timer" style="display:none;">⏱ 0:00</div>
-      <button class="back-link" onclick="bootTerminal()">↺ Recommencer</button>
+      <button class="back-link" id="replay-skip-btn" style="display:none;" onclick="skipReplayToEnd()">⏭ Passer à la fin</button>
+      <button class="back-link" id="restart-btn" onclick="bootTerminal()">↺ Recommencer</button>
     </div>
 
     <div class="layout">
@@ -325,6 +331,7 @@ Ticket obtenu. Prêt à cracker.</div>
           <button class="back-link" onclick="closeMissionComplete(); showExplain();">🛡️ En savoir plus</button>
           <button class="back-link" id="mc-cert-btn" style="display:none;" onclick="downloadCertificate()">🎓 Télécharger le certificat</button>
           <button class="back-link" onclick="shareMissionResult(this)">📤 Partager mon temps</button>
+          <button class="back-link" onclick="downloadReplay()">📼 Exporter le replay</button>
           <button class="cta cta-sm" onclick="closeMissionComplete(); bootTerminal();">↺ Recommencer</button>
         </div>
       </div>

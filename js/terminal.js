@@ -10,6 +10,9 @@ let missionStart = null;
 let cmdCount = 0;
 let hintsUsed = 0;
 let manCount = 0;
+let replayLog = [];
+let playbackActive = false;
+let replayToken = 0;
 
 const commonManPages = {
   'whoami': { name:'whoami /priv', role:'Affiche ton identité et tes droits actuels',
@@ -119,7 +122,9 @@ function addNoise(points, label){
   }
 }
 
-function bootTerminal(scenarioId){
+function bootTerminal(scenarioId, opts){
+  opts = opts || {};
+  replayToken++;
   if(scenarioId) state.scenarioId = scenarioId;
   const sc = currentScenario();
   screen().innerHTML = '';
@@ -135,6 +140,8 @@ function bootTerminal(scenarioId){
   cmdCount = 0;
   hintsUsed = 0;
   manCount = 0;
+  playbackActive = !!opts.playback;
+  if(!playbackActive) replayLog = [];
   document.getElementById('screen').closest('.terminal').classList.remove('victory');
   const mc = document.getElementById('mission-complete');
   if(mc){ mc.classList.remove('show'); mc.classList.remove('epic'); mc.hidden = true; }
@@ -142,6 +149,14 @@ function bootTerminal(scenarioId){
   const achHost = document.getElementById('mc-achievements'); if(achHost) achHost.innerHTML = '';
   const ch = document.getElementById('confetti-host'); if(ch) ch.innerHTML = '';
   document.getElementById('game-tag').textContent = sc.tag + (state.expertMode ? '  🎓' : '');
+  const replayBadge = document.getElementById('replay-badge');
+  const replaySkipBtn = document.getElementById('replay-skip-btn');
+  const restartBtn = document.getElementById('restart-btn');
+  if(replayBadge) replayBadge.style.display = playbackActive ? '' : 'none';
+  if(replaySkipBtn) replaySkipBtn.style.display = playbackActive ? '' : 'none';
+  if(restartBtn) restartBtn.style.display = playbackActive ? 'none' : '';
+  const cmdInput = document.getElementById('cmd-input');
+  if(cmdInput) cmdInput.disabled = playbackActive;
   document.getElementById('cmd-ref-list').innerHTML = sc.cmdRefHtml;
   document.getElementById('hint-text').style.display = 'none';
   const hintDots = document.getElementById('hint-dots'); if(hintDots) hintDots.innerHTML = '';
@@ -196,6 +211,7 @@ function handle(raw){
   if(cmdHistory[cmdHistory.length-1] !== cmd) cmdHistory.push(cmd);
   historyIndex = cmdHistory.length;
   cmdCount++;
+  if(!playbackActive) replayLog.push({ cmd, t: Date.now() - missionStart });
   const lower = cmd.toLowerCase();
   const sc = currentScenario();
 
@@ -315,9 +331,15 @@ function triggerMatrixRain(){
 
 function finishMission(){
   stopMissionTimer();
+  const sc = currentScenario();
+  if(playbackActive){
+    // Un replay ne doit pas fausser la progression réelle du joueur qui regarde.
+    const elapsed = Math.max(1, Math.round((Date.now() - missionStart) / 1000));
+    setTimeout(()=> showMissionComplete(elapsed, cmdCount, hintsUsed, []), sc.epic ? 1300 : 900);
+    return;
+  }
   if(typeof markScenarioComplete === 'function') markScenarioComplete(state.scenarioId);
   playVictorySound();
-  const sc = currentScenario();
   const elapsed = Math.max(1, Math.round((Date.now() - missionStart) / 1000));
   if(typeof recordBestTime === 'function') recordBestTime(state.scenarioId, elapsed, state.expertMode);
   let newAchievements = [];
@@ -561,3 +583,63 @@ function initTerminalInput(){
     }
   });
 }
+
+let replayCurrentLog = null;
+let replayCurrentIndex = 0;
+
+function typeCommand(text, myToken, done){
+  const input = document.getElementById('cmd-input');
+  if(!input || myToken !== replayToken){ done(); return; }
+  input.value = '';
+  let idx = 0;
+  const speed = 26;
+  (function step(){
+    if(myToken !== replayToken) return;
+    if(idx >= text.length){ setTimeout(done, 200); return; }
+    input.value += text[idx];
+    idx++;
+    setTimeout(step, speed);
+  })();
+}
+
+function runReplayPlayback(log){
+  const myToken = replayToken;
+  replayCurrentLog = log;
+  replayCurrentIndex = 0;
+  (function next(){
+    if(myToken !== replayToken) return; // session annulée (retour à l'accueil, redémarrage, "passer à la fin"...)
+    if(replayCurrentIndex >= log.length){
+      const input = document.getElementById('cmd-input');
+      if(input) input.disabled = false;
+      return;
+    }
+    const i = replayCurrentIndex;
+    const entry = log[i];
+    const prevT = i === 0 ? 0 : log[i-1].t;
+    const gap = Math.min(2200, Math.max(350, (entry.t - prevT) * 0.15));
+    setTimeout(() => {
+      if(myToken !== replayToken) return;
+      typeCommand(entry.cmd, myToken, () => {
+        if(myToken !== replayToken) return;
+        handle(entry.cmd);
+        const input = document.getElementById('cmd-input');
+        if(input) input.value = '';
+        replayCurrentIndex++;
+        next();
+      });
+    }, gap);
+  })();
+}
+
+function skipReplayToEnd(){
+  if(!playbackActive || !replayCurrentLog) return;
+  replayToken++; // annule le scheduler pas-à-pas en cours
+  const remaining = replayCurrentLog.slice(replayCurrentIndex);
+  const input = document.getElementById('cmd-input');
+  if(input) input.value = '';
+  remaining.forEach(entry => handle(entry.cmd));
+  replayCurrentLog = null;
+  replayCurrentIndex = 0;
+  if(input){ input.value = ''; input.disabled = false; }
+}
+

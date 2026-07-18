@@ -440,6 +440,8 @@ function startScenario(scenarioId){
 
 function backHome(){
   if(typeof stopMissionTimer === 'function') stopMissionTimer();
+  replayToken++; // annule un éventuel replay en cours (évite des commandes fantômes après le retour à l'accueil)
+  playbackActive = false;
   showView('view-home');
   updateHomeBadges();
 }
@@ -498,6 +500,55 @@ function showLeaderboard(){
   renderLeaderboardBody();
   showView('view-leaderboard');
 }
+function downloadReplay(){
+  if(playbackActive){
+    alert("Tu regardes déjà un replay : reviens à l'accueil et termine une vraie mission pour en exporter un nouveau.");
+    return;
+  }
+  const sc = currentScenario();
+  const payload = {
+    kind:'golden-ticket-replay', version:1, exportedAt:new Date().toISOString(),
+    scenarioId: state.scenarioId,
+    seed: sc.seed || null,
+    expertMode: !!state.expertMode,
+    commands: replayLog
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dateStr = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `golden-ticket-replay-${state.scenarioId}-${dateStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function startReplayFromFile(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      if(data.kind !== 'golden-ticket-replay' || !Array.isArray(data.commands)){
+        throw new Error('format invalide');
+      }
+      if(!SCENARIOS[data.scenarioId]) throw new Error('scénario inconnu');
+      if(data.scenarioId === 'libre' && data.seed){
+        DomainGen.regenerateLibre(data.seed);
+      }
+      if(typeof expertMode !== 'undefined') expertMode = !!data.expertMode;
+      showView('view-game');
+      bootTerminal(data.scenarioId, { playback:true });
+      runReplayPlayback(data.commands);
+    } catch(e){
+      alert("Ce fichier ne ressemble pas à un replay Golden Ticket valide.");
+    }
+  };
+  reader.readAsText(file);
+}
+
 function downloadCertificate(){
   const sc = SCENARIOS[state.scenarioId];
   const name = (prompt('Ton nom ou pseudo pour le certificat :', 'CORP\\Domain Admin') || 'CORP\\Domain Admin').slice(0, 40);
