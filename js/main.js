@@ -156,24 +156,25 @@ const PROGRESS_KEY = 'goldenticket_progress_v1';
 function loadProgress(){
   try{
     const raw = localStorage.getItem(PROGRESS_KEY);
-    if(!raw) return { completed:{}, bestTimes:{}, runHistory:{}, achievements:{}, librePaths:{} };
+    if(!raw) return { completed:{}, bestTimes:{}, runHistory:{}, achievements:{}, librePaths:{}, blueteamCases:{} };
     const parsed = JSON.parse(raw);
     return {
       completed: parsed.completed || {},
       bestTimes: parsed.bestTimes || {},
       runHistory: parsed.runHistory || {},
       achievements: parsed.achievements || {},
-      librePaths: parsed.librePaths || {}
+      librePaths: parsed.librePaths || {},
+      blueteamCases: parsed.blueteamCases || {}
     };
   }catch(e){
-    return { completed:{}, bestTimes:{}, runHistory:{}, achievements:{}, librePaths:{} };
+    return { completed:{}, bestTimes:{}, runHistory:{}, achievements:{}, librePaths:{}, blueteamCases:{} };
   }
 }
 function saveProgress(){
   try{
     localStorage.setItem(PROGRESS_KEY, JSON.stringify({
       completed: completedScenarios, bestTimes: bestTimes, runHistory: runHistory,
-      achievements: achievements, librePaths: librePaths
+      achievements: achievements, librePaths: librePaths, blueteamCases: blueteamCases
     }));
   }catch(e){ /* stockage indisponible (navigation privée...), tant pis */ }
 }
@@ -196,6 +197,7 @@ const bestTimes = pruneOrphanIds(savedProgress.bestTimes);
 const runHistory = pruneOrphanIds(savedProgress.runHistory);
 const achievements = savedProgress.achievements;
 const librePaths = savedProgress.librePaths;
+const blueteamCases = savedProgress.blueteamCases;
 
 function markScenarioComplete(scenarioId){
   completedScenarios[scenarioId] = true;
@@ -223,6 +225,7 @@ function resetProgress(){
   Object.keys(runHistory).forEach(k => delete runHistory[k]);
   Object.keys(achievements).forEach(k => delete achievements[k]);
   Object.keys(librePaths).forEach(k => delete librePaths[k]);
+  Object.keys(blueteamCases).forEach(k => delete blueteamCases[k]);
   saveProgress();
   updateHomeBadges();
 }
@@ -232,13 +235,14 @@ const ACHIEVEMENTS = [
   { id:'no_hint',       icon:'🎯', title:'Sans indice',    desc:"Terminer une mission sans cliquer sur Indice" },
   { id:'speedster',     icon:'⚡', title:'Éclair',          desc:"Terminer une mission en moins de 45s" },
   { id:'curious',       icon:'🧠', title:'Curieux',         desc:"Consulter man au moins 3 fois dans une mission" },
-  { id:'both_paths',    icon:'🧭', title:'Les deux routes', desc:"Terminer le mode libre par ses deux chemins" },
+  { id:'all_routes',    icon:'🧭', title:'Toutes les routes', desc:"Terminer le Mode Libre par ses 3 chemins différents (Helpdesk, Pass-the-Hash, Server Admins)" },
   { id:'golden_finisher',icon:'👑', title:'Golden Ticket',  desc:"Terminer le Chapitre Final" },
   { id:'domain_master', icon:'🏆', title:'Maître du domaine', desc:"Terminer tous les scénarios" },
   { id:'ghost',         icon:'🥷', title:'Fantôme',          desc:"Terminer une mission sans jamais déclencher l'alerte SOC" },
+  { id:'blueteam_detective', icon:'🕵️', title:'Détective complet', desc:"Résoudre les 3 dossiers d'incident différents du Mode Blue Team" },
 ];
 
-function unlockAchievements({ scenarioId, elapsed, hintsUsed, manCount, pathTaken, opsecEnabled, detected }){
+function unlockAchievements({ scenarioId, elapsed, hintsUsed, manCount, pathTaken, blueteamCaseId, opsecEnabled, detected }){
   const newlyUnlocked = [];
   const unlock = (id) => {
     if(!achievements[id]){
@@ -256,7 +260,13 @@ function unlockAchievements({ scenarioId, elapsed, hintsUsed, manCount, pathTake
 
   if(scenarioId === 'libre' && pathTaken){
     librePaths[pathTaken] = true;
-    if(librePaths.acl && librePaths.pth) unlock('both_paths');
+    if(librePaths['pth'] && librePaths['acl-helpdesk'] && librePaths['acl-serveradmins']) unlock('all_routes');
+  }
+
+  if(scenarioId === 'blueteam' && blueteamCaseId){
+    blueteamCases[blueteamCaseId] = true;
+    const allCaseIds = SCENARIOS.blueteam && SCENARIOS.blueteam.CASES ? SCENARIOS.blueteam.CASES.map(c => c.id) : [];
+    if(allCaseIds.length && allCaseIds.every(id => blueteamCases[id])) unlock('blueteam_detective');
   }
 
   const allIds = Object.keys(SCENARIOS);
@@ -284,7 +294,7 @@ function exportProgress(){
   const payload = {
     version:1, exportedAt:new Date().toISOString(),
     completed: completedScenarios, bestTimes: bestTimes, runHistory: runHistory,
-    achievements: achievements, librePaths: librePaths
+    achievements: achievements, librePaths: librePaths, blueteamCases: blueteamCases
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
   const url = URL.createObjectURL(blob);
@@ -311,11 +321,13 @@ function importProgress(file){
       Object.keys(runHistory).forEach(k => delete runHistory[k]);
       Object.keys(achievements).forEach(k => delete achievements[k]);
       Object.keys(librePaths).forEach(k => delete librePaths[k]);
+      Object.keys(blueteamCases).forEach(k => delete blueteamCases[k]);
       Object.assign(completedScenarios, pruneOrphanIds(data.completed || {}));
       Object.assign(bestTimes, pruneOrphanIds(data.bestTimes || {}));
       Object.assign(runHistory, pruneOrphanIds(data.runHistory || {}));
       Object.assign(achievements, data.achievements || {});
       Object.assign(librePaths, data.librePaths || {});
+      Object.assign(blueteamCases, data.blueteamCases || {});
       saveProgress();
       updateHomeBadges();
       renderAchievementsGrid();

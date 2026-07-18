@@ -347,6 +347,7 @@ function finishMission(){
     newAchievements = unlockAchievements({
       scenarioId: state.scenarioId, elapsed, hintsUsed, manCount,
       pathTaken: state.extra ? state.extra.pathTaken : null,
+      blueteamCaseId: state.scenarioId === 'blueteam' ? sc.currentCaseId : null,
       opsecEnabled: !!sc.opsecEnabled, detected: !!(state.opsec && state.opsec.detected)
     });
   }
