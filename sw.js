@@ -1,12 +1,14 @@
 // Service worker — Golden Ticket
 // Stratégie simple : cache-first pour l'app shell, avec repli réseau si absent du cache.
 // Bump CACHE_NAME à chaque déploiement pour invalider l'ancien cache.
-const CACHE_NAME = 'golden-ticket-v1';
+const CACHE_NAME = 'golden-ticket-v2';
 const APP_SHELL = [
   './',
   './index.html',
   './css/style.css',
+  './js/graph.js',
   './js/scenarios.js',
+  './js/domaingen.js',
   './js/terminal.js',
   './js/main.js',
   './manifest.json',

@@ -1,6 +1,6 @@
 # 🎫 Golden Ticket — Feuille de route
 
-Statut au 11 juillet 2026 : **3 scénarios + mode libre multi-chemins + 1 chapitre final épique** (Kerberoasting, Pass-the-Hash, Abus d'ACL, Mode libre combinant les trois avec plusieurs chemins valides, puis Chapitre Final qui enchaîne tout jusqu'au vrai Golden Ticket), moteur générique data-driven, leçon + glossaire + page d'analyse défense + progression persistante + classement des meilleurs temps + indices à paliers + confettis/fanfare sur le final.
+Statut au 18 juillet 2026 : **5 scénarios numérotés + mode Blue Team + mode libre multi-chemins (domaine aléatoire) + 1 chapitre final épique** (Kerberoasting, Pass-the-Hash, Abus d'ACL, Cloud AD/Entra ID, Certificats ADCS/ESC1, plus le Mode Blue Team défensif, le Mode Libre à domaine régénéré par seed, et le Chapitre Final qui enchaîne tout jusqu'au vrai Golden Ticket), moteur générique data-driven, leçon + glossaire + page d'analyse défense + progression persistante + classement des meilleurs temps + indices à paliers + confettis/fanfare sur le final + rejeu de mission exportable/partageable.
 
 ---
 
@@ -33,6 +33,7 @@ Statut au 11 juillet 2026 : **3 scénarios + mode libre multi-chemins + 1 chapit
 - [x] **Scénario 03 — Abus d'ACL**
 - [x] Mode "libre" : un domaine plus grand avec plusieurs chemins d'attaque valides au lieu d'une seule chaîne imposée
 - [x] Scénario "Golden Ticket" littéral — **Chapitre Final**, enchaîne les 3 techniques jusqu'au forgeage d'un ticket krbtgt
+- [x] **Scénario 05 — Abus de certificats (AD CS / ESC1)** : un modèle de certificat publié avec ENROLLEE_SUPPLIES_SUBJECT, ouvert à tout le monde, permet de forger un certificat au nom de l'administrateur et de s'authentifier par PKINIT. Ajouté hors-roadmap le 18 juillet 2026 (`SCENARIOS.adcs` dans `js/scenarios.js`), sur le même moteur générique — aucune modification du moteur nécessaire.
 
 ## 🔴 Chantiers d'architecture (fondations, avant d'empiler trop de contenu)
 

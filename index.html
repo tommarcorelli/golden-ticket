@@ -96,6 +96,12 @@ Ticket obtenu. Prêt à cracker.</div>
       <p>Change de camp : lis des journaux d'incident, identifie la technique utilisée, le compte compromis, et reconstitue la chronologie.</p>
       <button class="mode-play" onclick="goToLesson('blueteam')">▶ Enquêter</button>
     </div>
+    <div class="mode-card active-mode" id="mode-card-adcs">
+      <span class="done-badge" id="badge-adcs" style="display:none;">✓ Terminé</span>
+      <h4>📜 Scénario 05 — Certificats (ADCS ESC1)</h4>
+      <p>Une autorité de certification déployée trop vite, un modèle qui laisse le demandeur choisir sa propre identité. Usurpe l'administrateur avec un simple certificat.</p>
+      <button class="mode-play" onclick="goToLesson('adcs')">▶ Lancer</button>
+    </div>
   </div>
 
   <div class="epic-banner-wrap libre-wrap">
@@ -217,6 +223,22 @@ Ticket obtenu. Prêt à cracker.</div>
       <li class="gloss-card">
         <h4>OPSEC / SOC</h4>
         <p>L'<b>OPSEC</b> (sécurité opérationnelle) désigne la discrétion d'un attaquant. Le <b>SOC</b> (Security Operations Center) est l'équipe qui surveille les journaux et peut détecter une intrusion — certaines actions (authentifications, changements d'annuaire) sont bien plus visibles que d'autres (cassage hors-ligne, par exemple).</p>
+      </li>
+      <li class="gloss-card">
+        <h4>AD CS (Active Directory Certificate Services)</h4>
+        <p>Service qui permet à une entreprise de faire tourner sa propre autorité de certification (CA) interne, notamment pour authentifier des comptes par certificat plutôt que par mot de passe.</p>
+      </li>
+      <li class="gloss-card">
+        <h4>Modèle de certificat (template)</h4>
+        <p>Définit qui peut demander (s'enrôler) un certificat auprès de la CA, et quelles informations d'identité ce certificat contiendra. Un modèle mal configuré peut accorder bien plus de pouvoir que prévu.</p>
+      </li>
+      <li class="gloss-card">
+        <h4>ESC1 (ENROLLEE_SUPPLIES_SUBJECT)</h4>
+        <p>Faille classique d'AD CS : un modèle laisse le <b>demandeur</b> choisir librement l'identité inscrite dans son certificat. S'il est en plus ouvert à tous, n'importe qui peut obtenir un certificat valide pour l'administrateur du domaine.</p>
+      </li>
+      <li class="gloss-card">
+        <h4>PKINIT</h4>
+        <p>Extension de Kerberos qui permet de s'authentifier avec un certificat plutôt qu'un mot de passe. Un certificat forgé pour une identité suffit à obtenir un ticket (TGT) valide pour cette identité.</p>
       </li>
     </ul>
   </div>
