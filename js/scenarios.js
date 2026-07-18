@@ -1988,6 +1988,55 @@ SCENARIOS.blueteam = {
           "Restreindre les droits d'enrôlement aux seuls comptes qui en ont réellement besoin"
         ]
       }
+    },
+    {
+      id:'pth',
+      ticket:'INC-2024-0603',
+      alertLine:"authentification NTLM inhabituelle vers un serveur de fichiers, sans ticket Kerberos correspondant",
+      readmeText:`<span class="out-dim">"Alerte SIEM déclenchée à 06:01 : authentification NTLM détectée vers SRV-FILES01 pour un compte à privilèges, sans demande de ticket Kerberos correspondante. Détermine s'il s'agit d'une attaque, laquelle, quel compte est concerné, et reconstitue la chronologie complète avant de clôturer le ticket." — Notes d'astreinte</span>`,
+      techniqueLabel:'Pass-the-Hash',
+      CORRECT_TECHNIQUE:['pass-the-hash','pth','passe-le-hash','pass the hash'],
+      CORRECT_ACCOUNT:'administrator',
+      CORRECT_ORDER:'a,b,c,d',
+      EVENTS:{
+        A:{ time:'06:00:15', text:"EventID 4688 (Nouveau processus créé) — Compte : j.dupont — Détail : accès mémoire du processus LSASS (outil d'extraction d'identifiants) — Poste : WKS-042" },
+        B:{ time:'06:01:02', text:'EventID 4624 (Ouverture de session réussie) — Compte : Administrator — Poste source : WKS-042 — Poste destination : SRV-FILES01 — Package : NTLM ⚠ — Type d\'ouverture : 3 (réseau)' },
+        C:{ time:'06:01:02', text:"Analyse corrélée — Aucun EventID 4768 (TGT Kerberos) pour ce compte dans la fenêtre de l'ouverture de session : authentification NTLM directe, cohérente avec un hash réutilisé sans mot de passe en clair" },
+        D:{ time:'06:01:20', text:"EventID 4663 (Tentative d'accès à un objet) — Compte : Administrator — Objet : C:\\Users\\Administrator\\Desktop\\flag.txt (SRV-FILES01) — Droit : ReadData — Résultat : Autorisé" }
+      },
+      EVENTS_DISPLAY_ORDER:['C','A','D','B'],
+      hints:[
+        ["Avant de conclure quoi que ce soit, regarde ce qui se trouve dans ce dossier d'incident.",
+         "Il y a un journal de sécurité dans ce dossier — regarde son contenu.",
+         "Commence par `dir`, puis `type security.log` pour lire les événements corrélés à l'alerte."],
+        ["Une authentification réussie ne prouve rien en soi — regarde COMMENT elle a eu lieu, et ce qui aurait dû l'accompagner mais n'apparaît nulle part dans le journal.",
+         "Un compte à privilèges qui s'authentifie en NTLM plutôt qu'en Kerberos, sans qu'aucune demande de ticket (4768) ne le précède, trahit un hash réutilisé directement — pas un mot de passe tapé au clavier.",
+         "C'est un Pass-the-Hash : le hash NTLM a été réutilisé tel quel, sans jamais passer par Kerberos — soumets ta conclusion avec `report --technique pass-the-hash`."],
+        ["Regarde quel compte a servi à l'authentification NTLM suspecte, pas celui qui a manipulé la mémoire au départ.",
+         "Le hash extrait sur WKS-042 appartenait à un compte administrateur — c'est ce compte qui est réutilisé sur SRV-FILES01.",
+         "Le compte compromis est Administrator — soumets-le avec `report --account administrator`."],
+        ["Les événements ne sont pas affichés dans l'ordre chronologique du journal — base-toi sur les horodatages, pas sur l'ordre d'affichage.",
+         "Classe les 4 événements du plus ancien au plus récent d'après leur heure exacte.",
+         "Chronologie correcte, du plus ancien au plus récent : `report --order a,b,c,d`"],
+        ["Une fois les trois éléments du rapport soumis et corrects, il ne reste plus qu'à clôturer le dossier.",
+         "Il existe une commande dédiée pour clôturer une investigation terminée.",
+         "Clôture le dossier avec `close-incident`."]
+      ],
+      completeSub:"Pass-the-Hash détecté malgré l'absence de tout mot de passe cassé.",
+      chainSteps:[
+        {icon:'🧠', label:'Logs lus'}, {icon:'🔍', label:'Technique'},
+        {icon:'🧭', label:'Chronologie'}, {icon:'📝', label:'Rapport clos'}
+      ],
+      flag:'FLAG{blueteam_pth_detected}',
+      deepDive:{
+        why:"Le Pass-the-Hash laisse une absence caractéristique plutôt qu'un signal direct : une authentification NTLM réussie pour un compte à privilèges, sans le ticket Kerberos (4768) qui l'accompagnerait normalement, trahit un hash réutilisé tel quel plutôt qu'un mot de passe tapé au clavier.",
+        defenses:[
+          "Alerter sur les authentifications NTLM de comptes à privilèges quand Kerberos est censé être utilisé par défaut",
+          "Corréler l'absence de 4768 avant un 4624 NTLM pour détecter un hash réutilisé directement",
+          "Déployer LAPS pour que chaque machine ait un mot de passe administrateur local unique",
+          "Activer Credential Guard pour empêcher l'extraction de hash en mémoire"
+        ]
+      }
     }
   ],
 
