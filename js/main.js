@@ -510,6 +510,7 @@ function downloadReplay(){
     kind:'golden-ticket-replay', version:1, exportedAt:new Date().toISOString(),
     scenarioId: state.scenarioId,
     seed: sc.seed || null,
+    blueteamCase: state.scenarioId === 'blueteam' ? sc.currentCaseId : null,
     expertMode: !!state.expertMode,
     commands: replayLog
   };
@@ -537,6 +538,9 @@ function startReplayFromFile(file){
       if(!SCENARIOS[data.scenarioId]) throw new Error('scénario inconnu');
       if(data.scenarioId === 'libre' && data.seed){
         DomainGen.regenerateLibre(data.seed);
+      }
+      if(data.scenarioId === 'blueteam' && data.blueteamCase){
+        SCENARIOS.blueteam.forcedCase = data.blueteamCase;
       }
       if(typeof expertMode !== 'undefined') expertMode = !!data.expertMode;
       showView('view-game');

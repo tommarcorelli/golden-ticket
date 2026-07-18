@@ -1881,22 +1881,115 @@ SCENARIOS.blueteam = {
   startUser:'t.leroux',
 
   identities:{
-    't.leroux': { label:'SOC\\t.leroux', priv:'Analyste sécurité', groups:['SOC Tier 1'], desc:'Analyste SOC — équipe de garde, ticket INC-2024-0417' }
+    't.leroux': { label:'SOC\\t.leroux', priv:'Analyste sécurité', groups:['SOC Tier 1'], desc:'Analyste SOC — équipe de garde' }
   },
 
-  // Vérité terrain des événements — clé = identifiant affiché (EVT-X).
-  // L'ordre chronologique réel se lit uniquement à l'horodatage, pas à
-  // l'ordre d'affichage (volontairement mélangé dans security.log).
-  EVENTS:{
-    A:{ time:'02:50:10', text:'EventID 4769 (Ticket de service demandé) — Compte demandeur : k.morel — SPN visé : MSSQLSvc/sql-report.corp.local:1433 — Chiffrement : AES256-CTS-HMAC-SHA1' },
-    B:{ time:'03:12:04', text:'EventID 4769 (Ticket de service demandé) — Compte demandeur : j.dupont — SPN visé : MSSQLSvc/sql01.corp.local:1433 (svc_backup) — Chiffrement : RC4-HMAC ⚠ legacy' },
-    C:{ time:'03:14:47', text:"EventID 4624 (Ouverture de session réussie) — Compte : svc_backup — Poste source : WKS-042 — Type d'ouverture : 3 (réseau)" },
-    D:{ time:'03:15:02', text:"EventID 4663 (Tentative d'accès à un objet) — Compte : svc_backup — Objet : C:\\Users\\Administrator\\Desktop\\flag.txt — Droit : ReadData — Résultat : Autorisé (membre Backup Operators)" }
-  },
-  EVENTS_DISPLAY_ORDER:['C','A','D','B'],
-  CORRECT_ORDER:'a,b,c,d',
-  CORRECT_TECHNIQUE:['kerberoasting','kerberoast'],
-  CORRECT_ACCOUNT:'svc_backup',
+  // Deux dossiers d'incident possibles — un est tiré au hasard à chaque
+  // entrée dans le Mode Blue Team (ou forcé par un replay importé, voir
+  // sc.forcedCase). Vérité terrain des événements — clé = identifiant
+  // affiché (EVT-X). L'ordre chronologique réel se lit uniquement à
+  // l'horodatage, pas à l'ordre d'affichage (volontairement mélangé).
+  CASES:[
+    {
+      id:'kerberoast',
+      ticket:'INC-2024-0417',
+      alertLine:'pic anormal de demandes de tickets Kerberos cette nuit',
+      readmeText:`<span class="out-dim">"Alerte SIEM déclenchée à 03:12 : pic anormal de demandes de tickets Kerberos sur CORP.LOCAL. Détermine s'il s'agit d'une attaque, laquelle, quel compte est concerné, et reconstitue la chronologie complète avant de clôturer le ticket." — Notes d'astreinte</span>`,
+      techniqueLabel:'Kerberoasting',
+      CORRECT_TECHNIQUE:['kerberoasting','kerberoast'],
+      CORRECT_ACCOUNT:'svc_backup',
+      CORRECT_ORDER:'a,b,c,d',
+      EVENTS:{
+        A:{ time:'02:50:10', text:'EventID 4769 (Ticket de service demandé) — Compte demandeur : k.morel — SPN visé : MSSQLSvc/sql-report.corp.local:1433 — Chiffrement : AES256-CTS-HMAC-SHA1' },
+        B:{ time:'03:12:04', text:'EventID 4769 (Ticket de service demandé) — Compte demandeur : j.dupont — SPN visé : MSSQLSvc/sql01.corp.local:1433 (svc_backup) — Chiffrement : RC4-HMAC ⚠ legacy' },
+        C:{ time:'03:14:47', text:"EventID 4624 (Ouverture de session réussie) — Compte : svc_backup — Poste source : WKS-042 — Type d'ouverture : 3 (réseau)" },
+        D:{ time:'03:15:02', text:"EventID 4663 (Tentative d'accès à un objet) — Compte : svc_backup — Objet : C:\\Users\\Administrator\\Desktop\\flag.txt — Droit : ReadData — Résultat : Autorisé (membre Backup Operators)" }
+      },
+      EVENTS_DISPLAY_ORDER:['C','A','D','B'],
+      hints:[
+        ["Avant de conclure quoi que ce soit, regarde ce qui se trouve dans ce dossier d'incident.",
+         "Il y a un journal de sécurité dans ce dossier — regarde son contenu.",
+         "Commence par `dir`, puis `type security.log` pour lire les événements corrélés à l'alerte."],
+        ["Un des événements a un détail technique qui ne colle pas avec les autres.",
+         "Compare le type de chiffrement utilisé dans chaque demande de ticket Kerberos (EventID 4769). Un des deux est nettement plus ancien/faible que l'autre.",
+         "Le chiffrement RC4-HMAC sur un des événements 4769, alors que l'autre utilise AES256, est le signal classique du Kerberoasting — soumets ta conclusion avec `report --technique kerberoasting`."],
+        ["Regarde quel compte est directement visé par l'événement suspect, puis ce qui lui arrive juste après dans le journal.",
+         "Le compte visé par la demande de ticket au chiffrement faible est aussi celui qui ouvre une session juste après, sur un poste inattendu.",
+         "Le compte compromis est svc_backup — soumets-le avec `report --account svc_backup`."],
+        ["Les événements ne sont pas affichés dans l'ordre chronologique du journal — base-toi sur les horodatages, pas sur l'ordre d'affichage.",
+         "Classe les 4 événements du plus ancien au plus récent d'après leur heure exacte.",
+         "Chronologie correcte, du plus ancien au plus récent : `report --order a,b,c,d`"],
+        ["Une fois les trois éléments du rapport soumis et corrects, il ne reste plus qu'à clôturer le dossier.",
+         "Il existe une commande dédiée pour clôturer une investigation terminée.",
+         "Clôture le dossier avec `close-incident`."]
+      ],
+      completeSub:"Kerberoasting détecté et documenté avant l'escalade.",
+      chainSteps:[
+        {icon:'📄', label:'Logs lus'}, {icon:'🔍', label:'Technique'},
+        {icon:'🧭', label:'Chronologie'}, {icon:'📝', label:'Rapport clos'}
+      ],
+      flag:'FLAG{blueteam_kerberoast_detected}',
+      deepDive:{
+        why:"Le Kerberoasting laisse des traces discrètes mais réelles : une demande de ticket de service (Event ID 4769) chiffrée en RC4 alors que le reste de l'environnement utilise AES est un signal fort, surtout suivie de près par une ouverture de session et un accès fichier inhabituels pour ce compte. Aucun de ces événements pris isolément ne prouve une attaque — c'est leur corrélation, dans le bon ordre, qui la révèle.",
+        defenses:[
+          "Alerter spécifiquement sur les tickets Kerberos chiffrés en RC4 (type 0x17) quand l'environnement est censé n'utiliser que l'AES",
+          "Corréler automatiquement les événements 4769 / 4624 / 4663 dans une fenêtre de temps courte pour un même compte",
+          "Établir une base de référence du volume normal de demandes de ticket par compte de service, pour repérer les écarts",
+          "Documenter systématiquement une chronologie précise (et non un simple constat) dans chaque rapport d'incident",
+          "Déployer des comptes de service gérés (gMSA) : la cause racine ici reste un mot de passe de service faible"
+        ]
+      }
+    },
+    {
+      id:'adcs',
+      ticket:'INC-2024-0512',
+      alertLine:"délivrance de certificat suspecte suivie d'une authentification inhabituelle",
+      readmeText:`<span class="out-dim">"Alerte SIEM déclenchée à 04:02 : délivrance de certificat suspecte suivie d'une authentification par certificat inhabituelle pour un compte à privilèges. Détermine s'il s'agit d'une attaque, laquelle, quel compte est concerné, et reconstitue la chronologie complète avant de clôturer le ticket." — Notes d'astreinte</span>`,
+      techniqueLabel:'Abus de certificat AD CS (ESC1)',
+      CORRECT_TECHNIQUE:['esc1','adcs esc1','abus de certificat','certificat esc1','abus adcs','adcs'],
+      CORRECT_ACCOUNT:'administrator',
+      CORRECT_ORDER:'a,b,c,d',
+      EVENTS:{
+        A:{ time:'04:02:10', text:'EventID 4886 (Certificate Services a reçu une demande de certificat) — Compte demandeur : j.rossi — Modèle : WebServer — Sujet demandé (SAN) : CORP\\administrator ⚠ fourni par le demandeur' },
+        B:{ time:'04:02:11', text:'EventID 4887 (Certificate Services a approuvé la demande et délivré le certificat) — Modèle : WebServer — Sujet du certificat émis : CORP\\administrator' },
+        C:{ time:'04:03:40', text:'EventID 4768 (TGT Kerberos demandé) — Compte : administrator — Pré-authentification : certificat (PKINIT) — Poste source : WKS-204 ⚠ inhabituel pour ce compte' },
+        D:{ time:'04:03:52', text:"EventID 4663 (Tentative d'accès à un objet) — Compte : administrator — Objet : C:\\Users\\Administrator\\Desktop\\flag.txt — Droit : ReadData — Résultat : Autorisé" }
+      },
+      EVENTS_DISPLAY_ORDER:['C','A','D','B'],
+      hints:[
+        ["Avant de conclure quoi que ce soit, regarde ce qui se trouve dans ce dossier d'incident.",
+         "Il y a un journal de sécurité dans ce dossier — regarde son contenu.",
+         "Commence par `dir`, puis `type security.log` pour lire les événements corrélés à l'alerte."],
+        ["Un des événements de délivrance de certificat porte une information d'identité qui ne devrait pas pouvoir être choisie librement par le demandeur.",
+         "Compare qui demande le certificat (4886) à l'identité pour laquelle il est finalement délivré (4887) — ce n'est pas la même personne.",
+         "j.rossi a demandé un certificat, mais celui-ci a été délivré pour CORP\\administrator : c'est un abus de certificat AD CS (faille ESC1) — soumets ta conclusion avec `report --technique esc1`."],
+        ["Regarde quel compte utilise ensuite ce certificat pour s'authentifier, et ce qu'il fait juste après.",
+         "Le compte qui s'authentifie par certificat (PKINIT) juste après l'émission, depuis un poste qui n'est pas le sien, est celui qui a été usurpé.",
+         "Le compte compromis est administrator — soumets-le avec `report --account administrator`."],
+        ["Les événements ne sont pas affichés dans l'ordre chronologique du journal — base-toi sur les horodatages, pas sur l'ordre d'affichage.",
+         "Classe les 4 événements du plus ancien au plus récent d'après leur heure exacte.",
+         "Chronologie correcte, du plus ancien au plus récent : `report --order a,b,c,d`"],
+        ["Une fois les trois éléments du rapport soumis et corrects, il ne reste plus qu'à clôturer le dossier.",
+         "Il existe une commande dédiée pour clôturer une investigation terminée.",
+         "Clôture le dossier avec `close-incident`."]
+      ],
+      completeSub:"Abus de certificat AD CS (ESC1) détecté et documenté avant l'escalade.",
+      chainSteps:[
+        {icon:'📄', label:'Logs lus'}, {icon:'🔍', label:'Technique'},
+        {icon:'🧭', label:'Chronologie'}, {icon:'📝', label:'Rapport clos'}
+      ],
+      flag:'FLAG{blueteam_adcs_esc1_detected}',
+      deepDive:{
+        why:"Un abus de certificat AD CS laisse des traces précises mais rarement surveillées par défaut : une délivrance de certificat (Event ID 4887) dont le sujet ne correspond pas au demandeur d'origine (4886) est un signal quasi certain d'ESC1 — surtout suivie de près par une authentification par certificat (PKINIT) pour un compte à privilèges, depuis un poste qui n'est pas le sien.",
+        defenses:[
+          "Corréler les Event ID 4886/4887 : alerter quand l'identité demandée diffère du compte demandeur",
+          "Surveiller les authentifications Kerberos par certificat (Event ID 4768, pré-authentification par certificat) pour les comptes à privilèges",
+          "Auditer les modèles de certificats publiés et désactiver ENROLLEE_SUPPLIES_SUBJECT quand il n'est pas strictement nécessaire",
+          "Restreindre les droits d'enrôlement aux seuls comptes qui en ont réellement besoin"
+        ]
+      }
+    }
+  ],
 
   objectives:[
     { id:'investigate', text:"Consulter les journaux de l'incident" },
@@ -1904,24 +1997,6 @@ SCENARIOS.blueteam = {
     { id:'account',     text:'Identifier le compte compromis' },
     { id:'timeline',    text:'Reconstituer la chronologie des événements' },
     { id:'flag',        text:"Clôturer l'incident (rapport complet)" },
-  ],
-
-  hints:[
-    ["Avant de conclure quoi que ce soit, regarde ce qui se trouve dans ce dossier d'incident.",
-     "Il y a un journal de sécurité dans ce dossier — regarde son contenu.",
-     "Commence par `dir`, puis `type security.log` pour lire les événements corrélés à l'alerte."],
-    ["Un des événements a un détail technique qui ne colle pas avec les autres.",
-     "Compare le type de chiffrement utilisé dans chaque demande de ticket Kerberos (EventID 4769). Un des deux est nettement plus ancien/faible que l'autre.",
-     "Le chiffrement RC4-HMAC sur un des événements 4769, alors que l'autre utilise AES256, est le signal classique du Kerberoasting — soumets ta conclusion avec `report --technique kerberoasting`."],
-    ["Regarde quel compte est directement visé par l'événement suspect, puis ce qui lui arrive juste après dans le journal.",
-     "Le compte visé par la demande de ticket au chiffrement faible est aussi celui qui ouvre une session juste après, sur un poste inattendu.",
-     "Le compte compromis est svc_backup — soumets-le avec `report --account svc_backup`."],
-    ["Les événements ne sont pas affichés dans l'ordre chronologique du journal — base-toi sur les horodatages, pas sur l'ordre d'affichage.",
-     "Classe les 4 événements du plus ancien au plus récent d'après leur heure exacte.",
-     "Chronologie correcte, du plus ancien au plus récent : `report --order a,b,c,d`"],
-    ["Une fois les trois éléments du rapport soumis et corrects, il ne reste plus qu'à clôturer le dossier.",
-     "Il existe une commande dédiée pour clôturer une investigation terminée.",
-     "Clôture le dossier avec `close-incident`."]
   ],
 
   manPages:{
@@ -1948,48 +2023,51 @@ SCENARIOS.blueteam = {
 
   cmdRefHtml:`whoami /priv<br>dir<br>type &lt;fichier&gt;<br>report --technique &lt;valeur&gt;<br>report --account &lt;valeur&gt;<br>report --order &lt;a,b,c,...&gt;<br>close-incident<br>help`,
 
-  introLines:[
-    `<span class="out-dim">SOC Console [Simulation Lab]</span>`,
-    `<span class="out-warn">🛰️ Ticket ouvert : INC-2024-0417 — pic anormal de demandes de tickets Kerberos cette nuit.</span>`,
-    `<span class="out-dim">Connecté en tant que SOC\\t.leroux</span>`,
-    `<span class="out-info">Tape <b>help</b> pour voir les commandes disponibles.</span>`
-  ],
-
   lessonSlides:[
     { icon:'🛰️', title:'Changer de côté : la perspective SOC', html:
       `<p>Jusqu'ici, tu as joué l'attaquant. Ce mode inverse les rôles : tu es désormais <b>analyste au centre des opérations de sécurité (SOC)</b>, et une compromission a peut-être déjà eu lieu.</p>
        <p>Pas de terminal à compromettre ici — juste des journaux à lire, et des conclusions à soumettre.</p>` },
-    { icon:'📄', title:'Tous les tickets Kerberos ne sont pas suspects', html:
-      `<p>Un contrôleur de domaine génère des <b>centaines</b> d'événements 4769 (demande de ticket de service) chaque jour — la quasi-totalité sont parfaitement légitimes.</p>
-       <p>Le travail d'un analyste n'est pas de tout regarder avec suspicion, mais de repérer le <b>détail qui cloche</b> : un type de chiffrement inhabituel, un compte qui n'a rien à faire là, un horaire incongru.</p>` },
+    { icon:'📄', title:"Un journal, des milliers d'événements légitimes", html:
+      `<p>Un contrôleur de domaine génère des <b>centaines</b> d'événements de sécurité chaque jour — la quasi-totalité sont parfaitement légitimes.</p>
+       <p>Le travail d'un analyste n'est pas de tout regarder avec suspicion, mais de repérer le <b>détail qui cloche</b> : une information qui ne devrait pas être là, un compte qui n'a rien à faire à cet endroit, un horaire incongru.</p>` },
     { icon:'🧭', title:"La chronologie, l'outil de l'analyste", html:
       `<p>Un événement isolé ne prouve presque jamais rien. C'est la <b>corrélation</b> entre plusieurs événements — dans le bon ordre — qui raconte l'histoire complète d'une attaque.</p>
        <p>Reconstituer une chronologie précise est au cœur de tout vrai rapport d'incident : elle seule permet de dire ce qui s'est passé, dans quel ordre, et jusqu'où l'attaquant est allé.</p>` },
     { icon:'📋', title:'Ta mission', html:
-      `<p>Tu es <b>SOC\\t.leroux</b>. Une alerte s'est déclenchée cette nuit. Consulte le journal de l'incident, identifie la technique utilisée, le compte compromis, et remets les événements dans le bon ordre — puis clôture le dossier.</p>
-       <p class="lesson-tip">💡 Tape <b>help</b> une fois dans le terminal, ou <b>man &lt;commande&gt;</b> pour comprendre une commande précise.</p>` }
+      `<p>Tu es <b>SOC\\t.leroux</b>. Une alerte s'est déclenchée cette nuit — sa nature exacte reste à déterminer. Consulte le journal de l'incident, identifie la technique utilisée, le compte compromis, et remets les événements dans le bon ordre — puis clôture le dossier.</p>
+       <p class="lesson-tip">💡 Tape <b>help</b> une fois dans le terminal, ou <b>man &lt;commande&gt;</b> pour comprendre une commande précise. Le dossier d'incident est tiré au sort parmi plusieurs cas possibles à chaque nouvelle investigation.</p>` }
   ],
 
   completeTitle:'Incident résolu',
-  completeSub:"Kerberoasting détecté et documenté avant l'escalade.",
-  chainSteps:[
-    {icon:'📄', label:'Logs lus'}, {icon:'🔍', label:'Technique'},
-    {icon:'🧭', label:'Chronologie'}, {icon:'📝', label:'Rapport clos'}
-  ],
-  flag:'FLAG{blueteam_kerberoast_detected}',
 
-  deepDive:{
-    why:"Le Kerberoasting laisse des traces discrètes mais réelles : une demande de ticket de service (Event ID 4769) chiffrée en RC4 alors que le reste de l'environnement utilise AES est un signal fort, surtout suivie de près par une ouverture de session et un accès fichier inhabituels pour ce compte. Aucun de ces événements pris isolément ne prouve une attaque — c'est leur corrélation, dans le bon ordre, qui la révèle.",
-    defenses:[
-      "Alerter spécifiquement sur les tickets Kerberos chiffrés en RC4 (type 0x17) quand l'environnement est censé n'utiliser que l'AES",
-      "Corréler automatiquement les événements 4769 / 4624 / 4663 dans une fenêtre de temps courte pour un même compte",
-      "Établir une base de référence du volume normal de demandes de ticket par compte de service, pour repérer les écarts",
-      "Documenter systématiquement une chronologie précise (et non un simple constat) dans chaque rapport d'incident",
-      "Déployer des comptes de service gérés (gMSA) : la cause racine ici reste un mot de passe de service faible"
-    ]
+  initState(){
+    const sc = SCENARIOS.blueteam;
+    const c = sc.forcedCase
+      ? sc.CASES.find(x => x.id === sc.forcedCase)
+      : sc.CASES[Math.floor(Math.random() * sc.CASES.length)];
+    sc.forcedCase = null;
+    sc.currentCaseId = c.id;
+    sc.ticket = c.ticket;
+    sc.techniqueLabel = c.techniqueLabel;
+    sc.CORRECT_TECHNIQUE = c.CORRECT_TECHNIQUE;
+    sc.CORRECT_ACCOUNT = c.CORRECT_ACCOUNT;
+    sc.CORRECT_ORDER = c.CORRECT_ORDER;
+    sc.EVENTS = c.EVENTS;
+    sc.EVENTS_DISPLAY_ORDER = c.EVENTS_DISPLAY_ORDER;
+    sc.hints = c.hints;
+    sc.readmeText = c.readmeText;
+    sc.completeSub = c.completeSub;
+    sc.chainSteps = c.chainSteps;
+    sc.flag = c.flag;
+    sc.deepDive = c.deepDive;
+    sc.introLines = [
+      `<span class="out-dim">SOC Console [Simulation Lab]</span>`,
+      `<span class="out-warn">🛰️ Ticket ouvert : ${c.ticket} — ${c.alertLine}.</span>`,
+      `<span class="out-dim">Connecté en tant que SOC\\t.leroux</span>`,
+      `<span class="out-info">Tape <b>help</b> pour voir les commandes disponibles.</span>`
+    ];
+    return { technique:false, account:false, timeline:false };
   },
-
-  initState(){ return { technique:false, account:false, timeline:false }; },
 
   handle(lower, cmd, m){
     const sc = SCENARIOS.blueteam;
@@ -2003,7 +2081,7 @@ SCENARIOS.blueteam = {
     }
 
     if(lower === 'dir'){
-      print(`<span class="out-info"> Dossier d'incident : INC-2024-0417</span>`);
+      print(`<span class="out-info"> Dossier d'incident : ${sc.ticket}</span>`);
       print(`<span class="out-dim">  security.log</span>`);
       print(`<span class="out-dim">  readme.txt</span>`);
       return true;
@@ -2012,7 +2090,7 @@ SCENARIOS.blueteam = {
     if(lower.startsWith('type ')){
       const file = cmd.slice(5).trim().toLowerCase();
       if(file === 'readme.txt'){
-        print(`<span class="out-dim">"Alerte SIEM déclenchée à 03:12 : pic anormal de demandes de tickets Kerberos sur CORP.LOCAL. Détermine s'il s'agit d'une attaque, laquelle, quel compte est concerné, et reconstitue la chronologie complète avant de clôturer le ticket." — Notes d'astreinte</span>`);
+        print(sc.readmeText);
         return true;
       }
       if(file === 'security.log'){
@@ -2032,7 +2110,7 @@ SCENARIOS.blueteam = {
     if(m){
       const val = m[1].trim();
       if(sc.CORRECT_TECHNIQUE.includes(val)){
-        print(`<span class="out-good">✓ Technique confirmée : Kerberoasting.</span>`);
+        print(`<span class="out-good">✓ Technique confirmée : ${sc.techniqueLabel}.</span>`);
         state.extra.technique = true;
         complete('technique');
       } else {
@@ -2070,7 +2148,7 @@ SCENARIOS.blueteam = {
     if(lower === 'close-incident'){
       if(state.extra.technique && state.extra.account && state.extra.timeline){
         print(`<span class="flag-tag">${sc.flag}</span> <button class="copy-btn" onclick="copyFlag(this)">📋 Copier</button>`);
-        print(`<span class="out-good">🎉 Bravo — incident correctement qualifié : Kerberoasting sur svc_backup, chronologie complète, dossier clôturé.</span>`);
+        print(`<span class="out-good">🎉 Bravo — incident correctement qualifié : ${sc.techniqueLabel} sur ${sc.CORRECT_ACCOUNT}, chronologie complète, dossier clôturé.</span>`);
         print(`<span class="out-dim">🛡️ Pour aller plus loin : voir "En savoir plus" pour les recommandations de détection.</span>`);
         complete('flag');
         finishMission();
