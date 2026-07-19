@@ -28,6 +28,7 @@ const NOISE = {
   resetPassword:  noiseRule(/^set-domainuserpassword -identity \S+ -newpassword \S+$/, 20, 'Réinitialisation de mot de passe (Event ID 4724)'),
   mimikatzLogon:  noiseRule(/^mimikatz sekurlsa::logonpasswords$/, 25, 'Extraction mémoire LSASS (souvent détectée par un EDR)'),
   mimikatzDcsync: noiseRule(/^mimikatz lsadump::dcsync \/user:krbtgt$/, 40, 'Réplication DCSync (Event ID 4662 — très anormal hors des DC)'),
+  dcsyncAny:      noiseRule(/^mimikatz lsadump::dcsync \/user:\S+$/, 40, "Réplication DCSync (Event ID 4662 — très anormal hors d'un contrôleur de domaine)"),
   mimikatzGolden: noiseRule(/^mimikatz kerberos::golden .*$/, 10, "Forge d'un ticket (préparation risquée)"),
   pth:            noiseRule(/^pth \/target:\S+ \/user:\S+ \/hash:\S+$/, 15, 'Authentification par hash (NTLM)'),
   mgAppAll:       noiseRule(/^get-mgapp -all$/, 4, 'Requête Microsoft Graph en lecture'),
@@ -37,7 +38,9 @@ const NOISE = {
   addCredential:  noiseRule(/^add-credential -target \S+$/, 22, "Modification d'annuaire consignée (ajout d'un identifiant d'application)"),
   certipyFind:    noiseRule(/^certipy find$/, 6, "Énumération des modèles de certificats (requête LDAP vers l'AD CS)"),
   certipyReq:     noiseRule(/^certipy req -template \S+ -upn \S+$/, 16, "Demande de certificat (Event ID 4886/4887 côté serveur AD CS)"),
-  certipyAuth:    noiseRule(/^certipy auth -cert \S+$/, 20, "Authentification Kerberos par certificat (PKINIT) pour un compte à privilèges")
+  certipyAuth:    noiseRule(/^certipy auth -cert \S+$/, 20, "Authentification Kerberos par certificat (PKINIT) pour un compte à privilèges"),
+  whiskerAdd:     noiseRule(/^whisker add \/target:\S+$/, 17, "Modification de l'attribut msDS-KeyCredentialLink (Event ID 5136)"),
+  whiskerAuth:    noiseRule(/^whisker auth \/target:\S+$/, 20, "Authentification Kerberos par clé (PKINIT) pour un compte à privilèges")
 };
 
 // ---------------------------------------------------------
@@ -172,6 +175,20 @@ SCENARIOS.kerberoast = {
       "Si un compte de service classique est indispensable, imposer un mot de passe de 25+ caractères aléatoires",
       "Surveiller les demandes de tickets de service inhabituelles (Event ID 4769 côté Windows)",
       "Limiter les comptes de service à des groupes à faible privilège quand c'est possible"
+    ],
+    quiz:[
+      { q:"Pourquoi un utilisateur standard peut-il demander le ticket Kerberos d'un compte de service ?",
+        options:["C'est une faille du protocole Kerberos","C'est le fonctionnement normal de Kerberos pour tout compte avec un SPN","Il faut d'abord être administrateur du domaine","Le compte de service a mal configuré ses ACL"],
+        correct:1,
+        explain:"Kerberos est conçu ainsi : tout utilisateur authentifié peut demander un ticket de service pour n'importe quel SPN. La seule protection réelle est la robustesse du mot de passe qui chiffre ce ticket." },
+      { q:"Quelle mesure réduit le plus efficacement le risque de Kerberoasting ?",
+        options:["Changer le mot de passe de l'utilisateur standard","Utiliser des comptes de service gérés (gMSA)","Désactiver le compte administrateur intégré","Chiffrer le disque du contrôleur de domaine"],
+        correct:1,
+        explain:"Un gMSA a un mot de passe long, aléatoire, et changé automatiquement par AD — il devient donc pratiquement impossible à casser hors-ligne." },
+      { q:"Quel Event ID Windows permet de repérer une demande de ticket de service suspecte ?",
+        options:["4624","4769","4886","4662"],
+        correct:1,
+        explain:"L'Event ID 4769 correspond à une demande de ticket de service Kerberos (TGS) — une activité normale en soi, mais anormale en volume ou sur un compte à SPN sensible." }
     ]
   },
 
@@ -473,6 +490,20 @@ SCENARIOS.goldenticket = {
       "Limiter drastiquement qui peut effectuer une réplication de domaine (droit DCSync)",
       "Surveiller les requêtes de réplication anormales (Event ID 4662)",
       "Détecter les tickets Kerberos à durée de vie anormalement longue — signe classique d'un Golden Ticket"
+    ],
+    quiz:[
+      { q:"Pourquoi le compte krbtgt est-il la cible ultime dans un domaine Active Directory ?",
+        options:["Il contient tous les mots de passe des utilisateurs","Sa clé signe cryptographiquement tous les tickets Kerberos du domaine","C'est le seul compte avec accès à Internet","Il gère les mises à jour Windows du domaine"],
+        correct:1,
+        explain:"Quiconque possède la clé krbtgt peut forger des tickets Kerberos valides pour n'importe quelle identité — sans dépendre du mot de passe d'un compte réel." },
+      { q:"Pourquoi faut-il changer la clé krbtgt deux fois de suite, et pas une seule ?",
+        options:["Pour respecter une norme ISO obligatoire","Parce qu'AD conserve les deux dernières générations de la clé","Pour forcer tous les utilisateurs à se reconnecter","Un seul changement suffit toujours"],
+        correct:1,
+        explain:"AD garde en mémoire l'ancienne et la nouvelle clé krbtgt pour éviter de casser les tickets en cours ; un seul changement laisse donc encore un Golden Ticket valide avec l'ancienne clé." },
+      { q:"Quel signe technique trahit souvent un Golden Ticket en usage ?",
+        options:["Une connexion depuis un nouveau pays","Un ticket Kerberos à durée de vie anormalement longue","Un mot de passe changé récemment","Un compte verrouillé après plusieurs échecs"],
+        correct:1,
+        explain:"Un Golden Ticket forgé a souvent une durée de vie fixée arbitrairement (parfois des années), très différente de la durée de vie normale d'un ticket légitime — un signal fort pour la détection." }
     ]
   },
 
@@ -810,6 +841,20 @@ SCENARIOS.acl = {
       "Appliquer le principe du moindre privilège : accorder des droits temporaires avec expiration automatique",
       "Surveiller les modifications d'ACL sur les objets à privilège (Event ID 5136)",
       "Isoler les comptes à haut privilège dans un modèle de tiering (Tier 0 / 1 / 2)"
+    ],
+    quiz:[
+      { q:"Pourquoi une ACL dangereuse reste-t-elle souvent en place pendant des années ?",
+        options:["Windows la supprime automatiquement après 90 jours","Elle reste active tant que personne ne la retire explicitement","Elle n'est visible que par l'administrateur qui l'a créée","Les ACL AD expirent seulement en cas de changement de mot de passe"],
+        correct:1,
+        explain:"Une permission accordée pour un besoin ponctuel n'a pas de date d'expiration native : sans audit régulier, elle survit largement au-delà de son utilité." },
+      { q:"Quel outil est couramment utilisé côté défense pour auditer les chemins d'abus d'ACL avant qu'un attaquant ne les trouve ?",
+        options:["BloodHound","Wireshark","Nmap","Metasploit"],
+        correct:0,
+        explain:"BloodHound cartographie les relations AD (groupes, ACL, sessions) et révèle les chemins d'escalade de privilèges — le même outil sert aussi à l'attaque, d'où son usage défensif préventif." },
+      { q:"Quel principe limite le risque qu'une ACL trop permissive mène jusqu'à Domain Admin ?",
+        options:["Le moindre privilège avec droits temporaires","Le partage de mots de passe entre administrateurs","La désactivation complète des ACL","L'authentification unique (SSO) généralisée"],
+        correct:0,
+        explain:"Accorder des droits temporaires, avec expiration automatique et strictement nécessaires à la tâche, réduit la fenêtre et la portée d'une ACL mal configurée." }
     ]
   },
 
@@ -1039,6 +1084,20 @@ SCENARIOS.pth = {
       "Désactiver l'authentification NTLM quand c'est possible, au profit de Kerberos uniquement",
       "Limiter le nombre de comptes ayant des droits admin locaux sur plusieurs machines à la fois",
       "Activer Credential Guard pour protéger les hash en mémoire contre l'extraction"
+    ],
+    quiz:[
+      { q:"Pourquoi le Pass-the-Hash fonctionne-t-il sans jamais connaître le mot de passe en clair ?",
+        options:["Le hash est automatiquement déchiffré par Windows","NTLM accepte le hash lui-même comme preuve d'identité","Le hash est stocké en clair sur le disque","Il faut d'abord casser le hash pour l'utiliser"],
+        correct:1,
+        explain:"NTLM authentifie avec le hash directement — inutile de le casser pour retrouver le mot de passe en clair, il suffit de le rejouer tel quel." },
+      { q:"Pourquoi un même hash NTLM ouvre-t-il parfois plusieurs machines différentes ?",
+        options:["Toutes les machines partagent le même contrôleur de domaine","Le mot de passe administrateur local a été réutilisé sur plusieurs postes","Le hash change automatiquement selon la machine","C'est impossible sans droits Domain Admin"],
+        correct:1,
+        explain:"Quand le même mot de passe admin local est déployé partout, un seul hash volé devient une clé passe-partout — c'est exactement ce que LAPS empêche." },
+      { q:"Quelle solution est spécifiquement conçue pour empêcher la réutilisation d'un compte admin local sur tout le parc ?",
+        options:["LAPS","gMSA","Credential Guard","AD CS"],
+        correct:0,
+        explain:"LAPS (Local Administrator Password Solution) attribue un mot de passe admin local unique par machine, changé automatiquement — un hash volé ne vaut alors plus que pour une seule machine." }
     ]
   },
 
@@ -1721,6 +1780,20 @@ SCENARIOS.azuread = {
       "Protéger les applications sensibles avec des groupes à assignation de rôle protégée (Restricted Management Administrative Units / Role-Assignable Groups)",
       "Bannir les secrets en clair dans les pipelines CI/CD : privilégier Key Vault, l'identité managée (Managed Identity), ou l'authentification par certificat",
       "Activer Privileged Identity Management (PIM) pour rendre les rôles privilégiés temporaires, justifiés et audités plutôt que permanents"
+    ],
+    quiz:[
+      { q:"Pourquoi un secret d'App Registration qui fuite dans un pipeline CI/CD est-il si dangereux ?",
+        options:["Il permet de s'authentifier directement en tant que ce Service Principal","Il ne fonctionne que depuis le réseau de l'entreprise","Il expire automatiquement au bout d'une heure","Il ne donne accès qu'à des ressources en lecture seule"],
+        correct:0,
+        explain:"Un secret client suffit à s'authentifier comme le Service Principal correspondant — s'il a des rôles privilégiés, c'est comme voler l'identité de ce compte d'automatisation." },
+      { q:"Pourquoi le rôle Application Administrator permet-il indirectement de devenir Global Administrator ici ?",
+        options:["Il donne directement les droits Global Administrator","Il permet d'ajouter un identifiant à une application qui a elle-même ce rôle plus privilégié","Il permet de lire le mot de passe du Global Administrator","Il désactive automatiquement le MFA du tenant"],
+        correct:1,
+        explain:"Gérer les identifiants d'une application signifie pouvoir s'authentifier à sa place. Si cette application dispose du rôle Global Administrator, ses identifiants ouvrent ce rôle." },
+      { q:"Quelle bonne pratique évite qu'un rôle ultra-privilégié reste attribué en permanence ?",
+        options:["Privileged Identity Management (PIM)","Le partage du mot de passe entre administrateurs","La désactivation du MFA pour simplifier les audits","L'attribution du rôle à tous les Service Principals"],
+        correct:0,
+        explain:"PIM permet de rendre les rôles privilégiés temporaires, activés à la demande et justifiés, plutôt que attribués en permanence à un compte — y compris un Service Principal." }
     ]
   },
 
@@ -1937,6 +2010,20 @@ SCENARIOS.blueteam = {
           "Établir une base de référence du volume normal de demandes de ticket par compte de service, pour repérer les écarts",
           "Documenter systématiquement une chronologie précise (et non un simple constat) dans chaque rapport d'incident",
           "Déployer des comptes de service gérés (gMSA) : la cause racine ici reste un mot de passe de service faible"
+        ],
+        quiz:[
+          { q:"Quel détail technique, dans l'Event ID 4769 suspect, trahit une demande de ticket anormale ?",
+            options:["Le chiffrement RC4-HMAC alors que l'environnement utilise l'AES","L'heure de la demande, en pleine journée","Le nom du compte demandeur, trop court","L'adresse IP du contrôleur de domaine"],
+            correct:0,
+            explain:"Un ticket chiffré en RC4 (legacy) dans un environnement où l'AES256 est la norme est un signal fort — c'est exactement ce que révèle l'outil Kerberoasting, qui force ce choix de chiffrement." },
+          { q:"Pourquoi la corrélation entre 4769, 4624 et 4663 est-elle plus fiable qu'un seul événement isolé ?",
+            options:["Un seul événement suffit toujours à prouver une attaque","Aucun des événements pris seul ne prouve une attaque, mais leur enchaînement dans le bon ordre la révèle","Ces événements ne sont jamais liés entre eux","Les Event ID plus élevés sont automatiquement plus fiables"],
+            correct:1,
+            explain:"C'est le principe même de l'analyse SOC : chaque événement pourrait avoir une explication légitime, mais leur enchaînement précis (demande de ticket faible → ouverture de session → accès fichier) raconte l'histoire complète." },
+          { q:"Quelle mesure défensive s'attaque à la cause racine de ce type d'incident ?",
+            options:["Déployer des comptes de service gérés (gMSA)","Désactiver les journaux d'événements Kerberos","Supprimer le compte svc_backup sans le remplacer","Augmenter la durée de vie des tickets Kerberos"],
+            correct:0,
+            explain:"La cause racine reste un mot de passe de compte de service trop faible pour résister à un cassage hors-ligne — un gMSA a un mot de passe long, aléatoire et changé automatiquement." }
         ]
       }
     },
@@ -1986,6 +2073,20 @@ SCENARIOS.blueteam = {
           "Surveiller les authentifications Kerberos par certificat (Event ID 4768, pré-authentification par certificat) pour les comptes à privilèges",
           "Auditer les modèles de certificats publiés et désactiver ENROLLEE_SUPPLIES_SUBJECT quand il n'est pas strictement nécessaire",
           "Restreindre les droits d'enrôlement aux seuls comptes qui en ont réellement besoin"
+        ],
+        quiz:[
+          { q:"Qu'est-ce qui, dans la paire d'événements 4886/4887, trahit l'abus de certificat ?",
+            options:["Le sujet du certificat émis ne correspond pas au compte demandeur d'origine","Le certificat a été émis un dimanche","Le modèle de certificat s'appelle WebServer","Le délai entre les deux événements est trop court"],
+            correct:0,
+            explain:"Un certificat émis au nom de CORP\\administrator alors que la demande provient de j.rossi est la signature même d'un ESC1 : le champ sujet fourni par le demandeur n'a pas été validé." },
+          { q:"Pourquoi l'événement 4768 avec pré-authentification par certificat (PKINIT) est-il un indice clé ici ?",
+            options:["Il prouve que le compte administrator s'authentifie avec le certificat frauduleusement obtenu, depuis un poste inhabituel","Il indique un simple changement de mot de passe","Il signifie que MFA a été désactivé","Il correspond à une sauvegarde automatique du contrôleur de domaine"],
+            correct:0,
+            explain:"PKINIT permet de s'authentifier avec un certificat plutôt qu'un mot de passe. Le voir utilisé par administrator depuis WKS-204 — un poste inhabituel pour ce compte — confirme l'usurpation." },
+          { q:"Quelle mesure défensive cible spécifiquement la cause racine d'un ESC1 ?",
+            options:["Désactiver ENROLLEE_SUPPLIES_SUBJECT sur les modèles qui n'en ont pas besoin","Changer le mot de passe de l'administrateur plus souvent","Interdire l'usage de Kerberos au profit de NTLM","Chiffrer le disque du serveur AD CS"],
+            correct:0,
+            explain:"C'est ce drapeau qui permet au demandeur de choisir librement le sujet du certificat. Le désactiver là où il n'est pas nécessaire ferme la porte à ce type d'abus." }
         ]
       }
     },
@@ -2035,6 +2136,20 @@ SCENARIOS.blueteam = {
           "Corréler l'absence de 4768 avant un 4624 NTLM pour détecter un hash réutilisé directement",
           "Déployer LAPS pour que chaque machine ait un mot de passe administrateur local unique",
           "Activer Credential Guard pour empêcher l'extraction de hash en mémoire"
+        ],
+        quiz:[
+          { q:"Quelle absence, dans le journal, est le signal clé de ce Pass-the-Hash ?",
+            options:["Aucun EventID 4768 (TGT Kerberos) ne précède l'ouverture de session NTLM du compte à privilèges","Aucun EventID 4624 n'apparaît dans le journal","Le journal ne contient aucun horodatage","Aucune trace de connexion réseau n'existe"],
+            correct:0,
+            explain:"Un compte à privilèges qui s'authentifie normalement passerait par Kerberos (4768). Son absence avant une ouverture de session NTLM (4624) trahit un hash réutilisé directement, sans mot de passe tapé." },
+          { q:"À quoi sert l'événement 4688 relevé sur WKS-042 dans ce dossier ?",
+            options:["Il montre l'accès mémoire du processus LSASS, cohérent avec une extraction de hash","Il prouve que le pare-feu a bloqué la connexion","Il indique une mise à jour Windows automatique","Il montre un changement de mot de passe réussi"],
+            correct:0,
+            explain:"L'accès au processus LSASS est la méthode classique pour extraire les hash NTLM en mémoire — c'est l'étape qui précède logiquement la réutilisation du hash observée ensuite." },
+          { q:"Quelle mesure défensive limite le nombre de machines qu'un seul hash volé peut ouvrir ?",
+            options:["Déployer LAPS pour un mot de passe admin local unique par machine","Augmenter la taille de la mémoire LSASS","Désactiver les journaux d'événements NTLM","Autoriser NTLM sur toutes les machines par défaut"],
+            correct:0,
+            explain:"Sans LAPS, un même mot de passe admin local réutilisé sur tout le parc transforme un seul hash volé en clé passe-partout. LAPS garantit un mot de passe unique et changé automatiquement par machine." }
         ]
       }
     }
@@ -2352,6 +2467,20 @@ SCENARIOS.adcs = {
       "Restreindre les droits d'enrôlement aux seuls comptes qui en ont réellement besoin, pas à Domain Users par défaut",
       "Activer StrongCertificateBindingEnforcement et le mappage strict certificat ↔ compte",
       "Surveiller les événements d'émission de certificats (4886/4887) et les authentifications PKINIT inhabituelles pour des comptes à privilèges"
+    ],
+    quiz:[
+      { q:"Que permet concrètement le drapeau ENROLLEE_SUPPLIES_SUBJECT sur un modèle de certificat ?",
+        options:["Le demandeur choisit lui-même l'identité (le sujet) inscrite dans le certificat","Le certificat expire automatiquement après usage","Seul un administrateur peut demander ce certificat","Le certificat ne fonctionne que sur la machine qui l'a demandé"],
+        correct:0,
+        explain:"Ce drapeau laisse le demandeur préciser le sujet du certificat — s'il est ouvert à tous, n'importe qui peut demander un certificat au nom de l'administrateur." },
+      { q:"Comment ce certificat forgé permet-il ensuite de s'authentifier comme l'administrateur ?",
+        options:["Par PKINIT, l'authentification Kerberos par certificat","En le collant dans un fichier de mots de passe","En le renommant avec le nom de l'administrateur","Il ne permet pas de s'authentifier, seulement de le visualiser"],
+        correct:0,
+        explain:"PKINIT est l'extension Kerberos qui permet de s'authentifier avec un certificat plutôt qu'un mot de passe — un certificat au nom de l'admin y suffit." },
+      { q:"Quelle pratique aurait empêché ce scénario dès le départ ?",
+        options:["Auditer les modèles publiés et restreindre les droits d'enrôlement","Changer le mot de passe de l'administrateur plus souvent","Désactiver Kerberos au profit de NTLM","Chiffrer le contrôleur de domaine avec BitLocker"],
+        correct:0,
+        explain:"Un audit régulier des modèles de certificats publiés (droits d'enrôlement, drapeaux hérités) aurait révélé le modèle vulnérable avant qu'un attaquant ne l'exploite." }
     ]
   },
 
@@ -2445,6 +2574,586 @@ SCENARIOS.adcs = {
         print(`<span class="flag-tag">${sc.flag}</span> <button class="copy-btn" onclick="copyFlag(this)">📋 Copier</button>`);
         print(`<span class="out-good">🎉 Bravo — chaîne complète : modèle de certificat vulnérable (ESC1) → certificat usurpé → authentification PKINIT → Domain Admin.</span>`);
         print(`<span class="out-dim">🛡️ Pour se défendre : auditer tous les modèles de certificats publiés, restreindre les droits d'enrôlement, désactiver ENROLLEE_SUPPLIES_SUBJECT quand il n'est pas nécessaire.</span>`);
+        complete('flag');
+        finishMission();
+      } else if(file.toLowerCase() === 'flag.txt'){
+        print(`<span class="out-bad">Accès refusé : tu n'as pas les droits de lecture sur ce fichier.</span>`);
+      } else {
+        print(`<span class="out-bad">Fichier introuvable : ${escapeHtml(file)}</span>`);
+      }
+      return true;
+    }
+
+    return false;
+  }
+};
+
+// ---------------------------------------------------------
+// SCÉNARIO 06 — SHADOW CREDENTIALS (abus de msDS-KeyCredentialLink)
+// Contrairement au scénario 03 (ACL/GenericAll), ici le droit détourné
+// est étroit et discret — écrire sur UN SEUL attribut, pas tout
+// contrôler — et l'exploitation ne touche jamais au mot de passe :
+// aucune réinitialisation, donc aucun Event ID 4724, et l'utilisateur
+// légitime continue de se connecter normalement sans rien remarquer.
+// ---------------------------------------------------------
+SCENARIOS.shadowcred = {
+  id:'shadowcred',
+  tag:'👻 SCÉNARIO 06 · SHADOW CREDENTIALS',
+  lessonTag:'📘 LEÇON · SCÉNARIO 06',
+  opsecEnabled:true,
+  noiseRules:[NOISE.netUserAll, NOISE.netUserOne, NOISE.objectAcl, NOISE.whiskerAdd, NOISE.whiskerAuth],
+  startUser:'m.dubois',
+
+  identities:{
+    'm.dubois':  { label:'CORP\\m.dubois', priv:'Utilisateur standard', groups:['Domain Users','IT Passwordless Rollout'], desc:'Technicien support — projet Windows Hello for Business' },
+    'c.blanc':   { label:'CORP\\c.blanc', priv:'Utilisateur standard', groups:['Domain Users'], desc:'Employée — ressources humaines' },
+    's.lefevre': { label:'CORP\\s.lefevre', priv:'Administrateur du domaine', groups:['Domain Users','Domain Admins'], desc:'Direction des systèmes d\'information' }
+  },
+
+  // ACL simulées : qui a des droits inhabituels sur quel compte.
+  // Ici le droit vulnérable est volontairement étroit (Write sur un
+  // seul attribut), pas un contrôle total — c'est tout l'intérêt
+  // pédagogique par rapport au scénario 03.
+  acl:{
+    's.lefevre': [
+      { principal:'CORP\\Domain Admins', rights:'Full Control', normal:true },
+      { principal:'CORP\\IT Passwordless Rollout', rights:'Write msDS-KeyCredentialLink', normal:false }
+    ]
+  },
+
+  objectives:[
+    { id:'enum',   text:'Repérer les comptes à privilèges du domaine' },
+    { id:'keyacl', text:"Trouver un droit d'écriture sur l'attribut msDS-KeyCredentialLink" },
+    { id:'addkey', text:"Injecter une clé d'identification (shadow credential) sur le compte cible" },
+    { id:'auth',   text:"S'authentifier par cette clé (PKINIT), sans jamais toucher au mot de passe" },
+    { id:'flag',   text:'Récupérer le flag' },
+  ],
+
+  hints:[
+    ["Avant de chercher une faille, il faut savoir qui sont les comptes puissants de ce domaine.",
+     "Liste les comptes et repère celui qui appartient au groupe Domain Admins.",
+     "Commence par voir qui est qui dans le domaine : `net user /domain`"],
+    ["Les droits ne sont pas toujours \"tout ou rien\" — certains ne portent que sur un seul attribut, et passent d'autant plus inaperçus.",
+     "Regarde les droits accordés sur s.lefevre : un groupe dont tu es membre y figure peut-être, avec un droit très ciblé.",
+     "Ton groupe CORP\\IT Passwordless Rollout a un droit d'écriture étroit sur s.lefevre. Regarde-le avec : `get-objectacl s.lefevre`"],
+    ["Ce droit d'écriture porte sur un attribut précis, utilisé pour l'authentification sans mot de passe (Windows Hello for Business). Rien n'empêche d'y écrire sa propre clé.",
+     "Il existe un outil pour ajouter une clé d'identification (shadow credential) sur un compte, à condition d'avoir ce droit d'écriture.",
+     "Ajoute ta propre clé d'identification sur le compte cible avec : `whisker add /target:s.lefevre`"],
+    ["Cette clé n'est pas un mot de passe — elle sert à s'authentifier autrement, via le même mécanisme que les certificats (PKINIT).",
+     "Utilise cette clé pour t'authentifier directement en tant que s.lefevre, sans jamais connaître ni changer son mot de passe.",
+     "Authentifie-toi avec la clé injectée : `whisker auth /target:s.lefevre`"],
+    ["Tu es désormais Domain Admin, et le mot de passe original de s.lefevre n'a jamais changé.",
+     "Regarde ce qu'il y a sur ton propre bureau, maintenant que tu es s.lefevre.",
+     "Tu es maintenant Domain Admin. Regarde ton propre bureau avec `dir` puis `type flag.txt`"]
+  ],
+
+  manPages:{
+    'net': { name:'net user', role:"Interroge les comptes du domaine",
+      explain:"Sans argument après /domain, liste tous les comptes. Avec un nom, affiche ses détails.",
+      usage:'net user /domain   |   net user <nom> /domain' },
+    'get-objectacl': { name:'get-objectacl', role:"Liste les droits (ACL) accordés sur un compte",
+      explain:"Un droit peut porter sur l'objet entier (GenericAll) ou sur un seul attribut précis — comme <b>msDS-KeyCredentialLink</b>, l'attribut qui stocke les clés d'authentification sans mot de passe (Windows Hello for Business, FIDO). Un droit d'écriture sur ce seul attribut suffit à s'authentifier comme le compte cible, sans jamais toucher à son mot de passe.",
+      usage:'get-objectacl <nom>' },
+    'whisker': { name:'whisker', role:"Manipule l'attribut msDS-KeyCredentialLink d'un compte",
+      explain:"<code>add</code> injecte une nouvelle clé d'identification (shadow credential) sur le compte cible, à condition d'avoir un droit d'écriture suffisant sur cet attribut. <code>auth</code> utilise ensuite cette clé pour obtenir un ticket Kerberos (TGT) par authentification PKINIT — le même mécanisme que pour un certificat, mais sans jamais passer par une autorité de certification ni changer le mot de passe du compte.",
+      usage:'whisker add /target:<nom>   |   whisker auth /target:<nom>' }
+  },
+
+  knownCommands:[
+    'help','clear','man ','whoami /priv',
+    'net user /domain','net user ','get-objectacl ',
+    'whisker add /target:','whisker auth /target:','dir','type '
+  ],
+
+  helpLine:'whoami /priv, net user /domain, net user &lt;nom&gt; /domain, get-objectacl &lt;nom&gt;, whisker add /target:&lt;nom&gt;, whisker auth /target:&lt;nom&gt;, dir, type &lt;fichier&gt;, clear',
+
+  cmdRefHtml:`whoami /priv<br>net user /domain<br>net user &lt;nom&gt; /domain<br>get-objectacl &lt;nom&gt;<br>whisker add /target:&lt;nom&gt;<br>whisker auth /target:&lt;nom&gt;<br>dir<br>type &lt;fichier&gt;<br>help`,
+
+  introLines:[
+    `<span class="out-dim">Microsoft Windows [Simulation AD Lab]</span>`,
+    `<span class="out-dim">Session ouverte en tant que CORP\\m.dubois sur WKS-077</span>`,
+    `<span class="out-info">Tape <b>help</b> pour voir les commandes disponibles.</span>`
+  ],
+
+  lessonSlides:[
+    { icon:'🪪', title:'Authentification sans mot de passe : une nouvelle attaque de surface', html:
+      `<p>Windows Hello for Business et les clés de sécurité (FIDO2) permettent de s'authentifier sans mot de passe, grâce à une paire de clés stockée dans l'attribut <b>msDS-KeyCredentialLink</b> du compte.</p>
+       <p>Pour déployer ce système, les équipes IT ont souvent besoin d'un droit d'écriture sur cet attribut — un droit étroit, en apparence anodin.</p>` },
+    { icon:'👻', title:'Shadow Credentials : injecter sa propre clé', html:
+      `<p>Si ce droit d'écriture est mal restreint, rien n'empêche un attaquant d'y ajouter <b>sa propre clé</b> — une "shadow credential" — sur le compte d'un tiers.</p>
+       <p>Cette clé permet ensuite de s'authentifier comme ce compte via PKINIT (le même mécanisme que pour un certificat), sans jamais connaître son mot de passe.</p>` },
+    { icon:'🥷', title:'Pourquoi c\'est particulièrement discret', html:
+      `<p>Contrairement à une réinitialisation de mot de passe, injecter une clé <b>ne modifie rien de visible</b> pour l'utilisateur légitime : il continue de se connecter normalement, et aucun Event ID 4724 (changement de mot de passe) n'est généré.</p>
+       <p>Pire encore pour la défense : changer le mot de passe du compte compromis <b>ne suffit pas</b> à couper l'accès de l'attaquant — la clé injectée reste valide tant qu'elle n'est pas explicitement retirée.</p>` },
+    { icon:'📋', title:'Ta mission', html:
+      `<p>Tu es <b>CORP\\m.dubois</b>, technicien support sur un projet d'authentification sans mot de passe. Ton groupe de projet a gardé un droit qu'il n'aurait plus dû avoir.</p>
+       <p class="lesson-tip">💡 Tape <b>help</b> une fois dans le terminal, ou <b>man &lt;commande&gt;</b> pour comprendre une commande précise.</p>` }
+  ],
+
+  completeTitle:'Domain Admin obtenu',
+  completeSub:"Une clé injectée, jamais un mot de passe touché.",
+  chainSteps:[
+    {icon:'🔎', label:'Recon'}, {icon:'🪪', label:'Droit trouvé'},
+    {icon:'👻', label:'Clé injectée'}, {icon:'👑', label:'Domain Admin'}
+  ],
+  flag:'FLAG{shadow_credentials_msdskeycredentiallink_pkinit}',
+
+  graph:{
+    nodes:[
+      { id:'m.dubois', label:'m.dubois', type:'user' },
+      { id:'c.blanc', label:'c.blanc', type:'user' },
+      { id:'s.lefevre', label:'s.lefevre', type:'admin' },
+      { id:'grp_passwordless', label:'IT Passwordless Rollout', type:'group' }
+    ],
+    edges:[
+      { id:'e_member', from:'m.dubois', to:'grp_passwordless', type:'memberof', label:'MemberOf' },
+      { id:'e_acl', from:'grp_passwordless', to:'s.lefevre', type:'abuse', label:'Write msDS-KeyCredentialLink (oublié)' },
+      { id:'e_owned', from:'m.dubois', to:'s.lefevre', type:'owned', label:'Shadow credential + PKINIT' }
+    ]
+  },
+
+  deepDive:{
+    why:"L'attribut msDS-KeyCredentialLink stocke les clés utilisées pour l'authentification sans mot de passe (Windows Hello for Business, FIDO2). Un droit d'écriture sur ce seul attribut — souvent accordé largement pendant un déploiement, puis jamais retiré — permet à quiconque le possède d'y ajouter sa propre clé, et de s'authentifier comme le compte cible via PKINIT. C'est un droit étroit, donc facile à accorder sans réfléchir, et facile à oublier dans un audit qui ne cherche que les GenericAll évidents.",
+    defenses:[
+      "Auditer spécifiquement les droits d'écriture sur msDS-KeyCredentialLink, pas seulement les droits larges comme GenericAll",
+      "Limiter au strict nécessaire, et dans le temps, les groupes impliqués dans un déploiement d'authentification sans mot de passe",
+      "Surveiller les modifications de l'attribut msDS-KeyCredentialLink (Event ID 5136) en dehors des postes et comptes attendus",
+      "Retenir qu'une réinitialisation de mot de passe seule ne suffit pas à révoquer l'accès : il faut aussi supprimer toute clé injectée sur le compte"
+    ],
+    quiz:[
+      { q:"Pourquoi un droit d'écriture sur msDS-KeyCredentialLink est-il souvent oublié lors d'un audit d'ACL ?",
+        options:["Il n'existe dans aucun journal Windows","C'est un droit étroit sur un seul attribut, moins visible qu'un droit large comme GenericAll","Il ne peut être accordé qu'aux comptes de service","Microsoft ne documente pas cet attribut"],
+        correct:1,
+        explain:"Un audit qui cherche surtout les droits larges et évidents (GenericAll, Full Control) peut facilement laisser passer un droit d'écriture étroit sur un seul attribut, techniquement tout aussi dangereux ici." },
+      { q:"Pourquoi cette technique ne génère-t-elle pas d'Event ID 4724 (changement de mot de passe) ?",
+        options:["Parce que l'Event ID 4724 est désactivé par défaut","Parce qu'aucun mot de passe n'est jamais modifié — seule une clé est ajoutée en plus","Parce que l'attaquant supprime le journal après coup","Parce que 4724 ne concerne que les comptes de service"],
+        correct:1,
+        explain:"La technique n'a jamais besoin de toucher au mot de passe du compte : elle ajoute simplement une clé d'authentification alternative, ce qui ne déclenche pas les mêmes événements qu'une réinitialisation." },
+      { q:"Pourquoi changer le mot de passe du compte compromis ne suffit-il pas à couper l'accès de l'attaquant ?",
+        options:["Le mot de passe et la clé injectée sont deux méthodes d'authentification indépendantes — la clé reste valide tant qu'elle n'est pas retirée explicitement","Changer un mot de passe ne fonctionne jamais sur les comptes Domain Admin","La clé injectée devient automatiquement le nouveau mot de passe","Il faut redémarrer le contrôleur de domaine pour que le changement prenne effet"],
+        correct:0,
+        explain:"PKINIT via la clé injectée est un chemin d'authentification totalement séparé du mot de passe. Sans supprimer explicitement la clé de msDS-KeyCredentialLink, l'attaquant garde son accès même après un changement de mot de passe." }
+    ]
+  },
+
+  initState(){ return { shadowKeyTarget:null }; },
+
+  handle(lower, cmd, m){
+    const sc = SCENARIOS.shadowcred;
+
+    if(lower === 'whoami /priv' || lower === 'whoami'){
+      const u = sc.identities[state.user];
+      print(`<span class="out-info">Utilisateur : ${u.label}</span>`);
+      print(`<span class="out-info">Rôle : ${u.priv}</span>`);
+      print(`<span class="out-info">Groupes : ${u.groups.join(', ')}</span>`);
+      return true;
+    }
+
+    if(lower === 'net user /domain'){
+      print(`<span class="out-info">Comptes du domaine CORP.LOCAL :</span>`);
+      Object.keys(sc.identities).forEach(name => print(`<span class="out-dim">  ${name}</span>`));
+      AttackGraph.reveal({ nodes:Object.keys(sc.identities) });
+      complete('enum');
+      return true;
+    }
+
+    m = lower.match(/^net user (\S+) \/domain$/);
+    if(m){
+      const name = m[1];
+      const u = sc.identities[name];
+      if(!u){ print(`<span class="out-bad">Utilisateur introuvable : ${name}</span>`); return true; }
+      print(`<span class="out-info">Nom du compte : ${name}</span>`);
+      print(`<span class="out-info">Description : ${u.desc}</span>`);
+      print(`<span class="out-info">Groupes : ${u.groups.join(', ')}</span>`);
+      if(u.groups.includes('Domain Admins')){
+        print(`<span class="out-warn">⚠ Ce compte est administrateur du domaine — une cible de choix.</span>`);
+      }
+      complete('enum');
+      return true;
+    }
+
+    m = lower.match(/^get-objectacl (\S+)$/);
+    if(m){
+      const name = m[1];
+      const entries = sc.acl[name];
+      if(!entries){ print(`<span class="out-bad">Objet introuvable : ${escapeHtml(name)}</span>`); return true; }
+      print(`<span class="out-info">ACL sur le compte ${name} :</span>`);
+      entries.forEach(e => {
+        if(e.normal){
+          print(`<span class="out-dim">  ${e.principal} — ${e.rights}</span>`);
+        } else {
+          print(`<span class="out-warn">  ${e.principal} — ${e.rights}  ⚠ droit étroit mais suffisant pour s'authentifier</span>`);
+        }
+      });
+      if(entries.some(e => !e.normal)){
+        AttackGraph.reveal({ edges:['e_member','e_acl'] });
+        complete('keyacl');
+      }
+      return true;
+    }
+
+    m = lower.match(/^whisker add \/target:(\S+)$/);
+    if(m){
+      const name = m[1];
+      const entries = sc.acl[name] || [];
+      const me = sc.identities[state.user];
+      const hasRight = entries.some(e => !e.normal && me.groups.some(g => e.principal.toLowerCase().endsWith(g.toLowerCase())));
+      if(!hasRight){
+        print(`<span class="out-bad">Accès refusé : tu n'as pas de droit d'écriture sur msDS-KeyCredentialLink pour ce compte.</span>`);
+        return true;
+      }
+      print(`<span class="out-good">Clé d'identification injectée avec succès sur ${name} (msDS-KeyCredentialLink).</span>`);
+      print(`<span class="out-dim">💡 Empreinte de la clé : 1a3f9c...(tronquée). Aucun mot de passe modifié — l'utilisateur légitime peut continuer à se connecter normalement, sans rien remarquer.</span>`);
+      state.extra.shadowKeyTarget = name;
+      AttackGraph.reveal({ edges:['e_acl'] });
+      complete('addkey');
+      return true;
+    }
+
+    m = lower.match(/^whisker auth \/target:(\S+)$/);
+    if(m){
+      const name = m[1];
+      if(!sc.identities[name]){ print(`<span class="out-bad">Compte introuvable.</span>`); return true; }
+      if(state.extra.shadowKeyTarget !== name){
+        print(`<span class="out-bad">Aucune clé d'identification injectée pour ce compte.</span>`);
+        return true;
+      }
+      state.user = name;
+      updatePrompt();
+      print(`<span class="out-good">TGT Kerberos obtenu par PKINIT avec la clé injectée — session ouverte en tant que ${sc.identities[name].label}.</span>`);
+      print(`<span class="out-dim">💡 Le mot de passe original de ce compte n'a jamais été consulté ni modifié.</span>`);
+      AttackGraph.reveal({ edges:['e_owned'] });
+      AttackGraph.markOwned(name);
+      complete('auth');
+      return true;
+    }
+
+    if(lower === 'dir'){
+      if(state.user === 's.lefevre'){
+        print(`<span class="out-info"> Répertoire : C:\\Users\\s.lefevre\\Desktop</span>`);
+        print(`<span class="out-dim">  flag.txt</span>`);
+      } else {
+        print(`<span class="out-info"> Répertoire : C:\\Users\\${state.user}\\Desktop</span>`);
+        print(`<span class="out-dim">  (rien d'intéressant ici)</span>`);
+      }
+      return true;
+    }
+
+    if(lower.startsWith('type ')){
+      const file = cmd.slice(5).trim();
+      if(file.toLowerCase() === 'flag.txt' && state.user === 's.lefevre'){
+        print(`<span class="flag-tag">${sc.flag}</span> <button class="copy-btn" onclick="copyFlag(this)">📋 Copier</button>`);
+        print(`<span class="out-good">🎉 Bravo — chaîne complète : droit d'écriture étroit oublié (msDS-KeyCredentialLink) → clé injectée → authentification PKINIT → Domain Admin.</span>`);
+        print(`<span class="out-dim">🛡️ Pour se défendre : auditer spécifiquement les droits sur msDS-KeyCredentialLink, pas seulement les GenericAll évidents — et retenir qu'un changement de mot de passe seul ne révoque pas une clé injectée.</span>`);
+        complete('flag');
+        finishMission();
+      } else if(file.toLowerCase() === 'flag.txt'){
+        print(`<span class="out-bad">Accès refusé : tu n'as pas les droits de lecture sur ce fichier.</span>`);
+      } else {
+        print(`<span class="out-bad">Fichier introuvable : ${escapeHtml(file)}</span>`);
+      }
+      return true;
+    }
+
+    return false;
+  }
+};
+
+// ---------------------------------------------------------
+// SCÉNARIO 07 — DCSYNC (abus de droits de réplication délégués)
+// Le twist pédagogique : pas besoin d'être Domain Admin. Un simple
+// compte de service (typiquement le compte de synchronisation Azure AD
+// Connect) qui a gardé les droits DS-Replication-Get-Changes /
+// -Get-Changes-All sur le domaine peut répliquer le hash de n'importe
+// quel compte — Domain Admin, ou même krbtgt (le Golden Ticket).
+// ---------------------------------------------------------
+SCENARIOS.dcsync = {
+  id:'dcsync',
+  tag:'🧬 SCÉNARIO 07 · DCSYNC',
+  lessonTag:'📘 LEÇON · SCÉNARIO 07',
+  opsecEnabled:true,
+  noiseRules:[NOISE.netUserAll, NOISE.netUserOne, NOISE.objectAcl, NOISE.dcsyncAny, NOISE.pth],
+  startUser:'svc_adsync',
+
+  identities:{
+    'svc_adsync': { label:'CORP\\svc_adsync', priv:'Compte de service (non-admin)', groups:['Domain Users','ADSync Operators'], desc:'Compte de synchronisation Azure AD Connect — installé une fois, jamais restreint depuis' },
+    'p.girard':   { label:'CORP\\p.girard', priv:'Utilisateur standard', groups:['Domain Users'], desc:'Employé — service commercial' },
+    'a.faure':    { label:'CORP\\a.faure', priv:'Administrateur du domaine', groups:['Domain Users','Domain Admins'], desc:"Administrateur — équipe infrastructure" }
+  },
+
+  // Hashes NTLM (simulés) qu'une réplication DCSync fait tomber.
+  // Le point clé : ils sont accessibles sans jamais toucher aux comptes
+  // eux-mêmes, ni connaître un seul mot de passe.
+  hashes:{
+    'a.faure':    'b4f3d2a1c0e9f8b7a6d5c4e3f2a1b0c9',
+    'p.girard':   '31d6cfe0d16ae931b73c59d7e0c089c0',
+    'svc_adsync': '7a2e4c1f9b8d6a3e5c7f1b9d2a4e6c8f',
+    'krbtgt':     'ff87f8f2f8dfd7c0d1ae1c8f9b3a3e51'
+  },
+
+  // L'ACL vulnérable ne porte pas sur un compte, mais sur l'objet
+  // domaine lui-même (le contexte de nommage) — c'est là que se
+  // délèguent les droits de réplication. On l'interroge via
+  // `get-objectacl domain`.
+  acl:{
+    'domain': [
+      { principal:'CORP\\Domain Admins',       rights:'Full Control', normal:true },
+      { principal:'CORP\\Domain Controllers',  rights:'DS-Replication-Get-Changes-All', normal:true },
+      { principal:'CORP\\ADSync Operators',    rights:'DS-Replication-Get-Changes, DS-Replication-Get-Changes-All', normal:false }
+    ]
+  },
+
+  objectives:[
+    { id:'enum',    text:'Repérer les comptes à privilèges du domaine' },
+    { id:'replacl', text:'Découvrir des droits de réplication (DCSync) délégués à un compte non-admin' },
+    { id:'dcsync',  text:"Répliquer le hash NTLM d'un administrateur du domaine" },
+    { id:'pth',     text:'Rejouer ce hash pour ouvrir une session (Pass-the-Hash)' },
+    { id:'flag',    text:'Récupérer le flag' },
+  ],
+
+  hints:[
+    ["Avant tout, il faut savoir qui sont les comptes puissants de ce domaine.",
+     "Liste les comptes et repère celui qui appartient au groupe Domain Admins.",
+     "Commence par voir qui est qui : `net user /domain`"],
+    ["Les droits de réplication (DCSync) ne se posent pas sur un compte, mais sur le domaine lui-même — regarde ce niveau-là.",
+     "Ton compte est membre d'un groupe de synchronisation. Ce groupe a peut-être gardé des droits qu'il ne devrait plus avoir sur le domaine.",
+     "Inspecte les droits posés sur l'objet domaine : `get-objectacl domain`"],
+    ["Avec les droits DS-Replication-Get-Changes-All, tu peux demander au contrôleur de te répliquer les secrets d'un compte — sans être Domain Admin.",
+     "Cible l'administrateur du domaine et réplique son hash NTLM.",
+     "Réplique le hash de l'administrateur : `mimikatz lsadump::dcsync /user:a.faure`"],
+    ["Un hash NTLM se rejoue tel quel : pas besoin de le casser pour s'en servir (Pass-the-Hash).",
+     "Réutilise le hash d'a.faure pour ouvrir une session en son nom.",
+     "Rejoue le hash récupéré : `pth /target:DC01 /user:a.faure /hash:<hash>`"],
+    ["Tu es désormais Domain Admin, et personne n'a changé de mot de passe.",
+     "Regarde ce qu'il y a sur le bureau d'a.faure, maintenant que tu es lui.",
+     "Tu es Domain Admin. Fais `dir` puis `type flag.txt`"]
+  ],
+
+  manPages:{
+    'net': { name:'net user', role:"Interroge les comptes du domaine",
+      explain:"Sans argument après /domain, liste tous les comptes. Avec un nom, affiche ses détails.",
+      usage:'net user /domain   |   net user <nom> /domain' },
+    'get-objectacl': { name:'get-objectacl', role:"Liste les droits (ACL) posés sur un objet",
+      explain:"Fonctionne sur un compte, mais aussi sur l'objet <b>domaine</b> lui-même (<code>get-objectacl domain</code>). C'est à ce niveau que se délèguent les droits de <b>réplication</b> : <b>DS-Replication-Get-Changes</b> + <b>DS-Replication-Get-Changes-All</b>. Un compte qui les possède peut extraire les secrets de n'importe quel compte, sans être Domain Admin.",
+      usage:'get-objectacl domain   |   get-objectacl <nom>' },
+    'mimikatz': { name:'mimikatz', role:'Boîte à outils post-exploitation AD',
+      explain:"<code>lsadump::dcsync /user:&lt;nom&gt;</code> simule une réplication d'annuaire auprès du contrôleur pour extraire le hash NTLM (et les clés Kerberos) du compte visé. Contrairement à une extraction mémoire (LSASS), <b>ça ne nécessite pas d'être Domain Admin</b> : les seuls droits de réplication suffisent. Cibler <b>krbtgt</b> donne de quoi forger un Golden Ticket (voir le Chapitre Final).",
+      usage:'mimikatz lsadump::dcsync /user:<nom>' },
+    'pth': { name:'pth (pass-the-hash)', role:'Rejoue un hash NTLM comme preuve d\'identité',
+      explain:"Ouvre une session au nom d'un compte en présentant son hash NTLM au lieu de son mot de passe en clair — le protocole NTLM ne fait pas la différence. Le hash suffit : nul besoin de le casser.",
+      usage:'pth /target:<machine> /user:<nom> /hash:<hash>' }
+  },
+
+  knownCommands:[
+    'help','clear','man ','whoami /priv',
+    'net user /domain','net user ','get-objectacl ',
+    'mimikatz lsadump::dcsync /user:','pth /target:','dir','type '
+  ],
+
+  helpLine:'whoami /priv, net user /domain, net user &lt;nom&gt; /domain, get-objectacl domain, get-objectacl &lt;nom&gt;, mimikatz lsadump::dcsync /user:&lt;nom&gt;, pth /target:&lt;machine&gt; /user:&lt;nom&gt; /hash:&lt;hash&gt;, dir, type &lt;fichier&gt;, clear',
+
+  cmdRefHtml:`whoami /priv<br>net user /domain<br>net user &lt;nom&gt; /domain<br>get-objectacl domain<br>get-objectacl &lt;nom&gt;<br>mimikatz lsadump::dcsync /user:&lt;nom&gt;<br>pth /target:&lt;machine&gt; /user:&lt;nom&gt; /hash:&lt;hash&gt;<br>dir<br>type &lt;fichier&gt;<br>help`,
+
+  introLines:[
+    `<span class="out-dim">Microsoft Windows [Simulation AD Lab]</span>`,
+    `<span class="out-dim">Session ouverte en tant que CORP\\svc_adsync sur SRV-SYNC01</span>`,
+    `<span class="out-info">Tape <b>help</b> pour voir les commandes disponibles.</span>`
+  ],
+
+  lessonSlides:[
+    { icon:'🔁', title:'La réplication : le cœur d\'Active Directory', html:
+      `<p>Les contrôleurs de domaine se synchronisent en permanence en <b>répliquant</b> leur base entre eux — y compris les secrets (hashes de mots de passe). Deux droits gouvernent cette réplication : <b>DS-Replication-Get-Changes</b> et <b>DS-Replication-Get-Changes-All</b>.</p>
+       <p>Normalement, seuls les contrôleurs de domaine (et les Domain Admins) les possèdent.</p>` },
+    { icon:'🧬', title:'DCSync : se faire passer pour un contrôleur', html:
+      `<p>Un compte qui détient ces droits peut <b>demander au vrai contrôleur de lui répliquer</b> les secrets de n'importe quel compte — comme s'il était lui-même un DC. C'est l'attaque <b>DCSync</b>.</p>
+       <p>Le piège : ces droits sont parfois <b>délégués à un compte non-admin</b>. Le cas d'école : le compte de synchronisation d'Azure AD Connect, installé avec ces droits et rarement restreint ensuite.</p>` },
+    { icon:'🥷', title:'Pourquoi c\'est redoutable', html:
+      `<p>Pas besoin d'être Domain Admin, ni de toucher au compte cible, ni de casser quoi que ce soit : le hash tombe directement. On peut répliquer un Domain Admin — ou même <b>krbtgt</b>, la clé qui signe tous les tickets, et forger un <b>Golden Ticket</b>.</p>
+       <p>Côté défense, seule la surveillance des réplications anormales (Event ID 4662 hors des DC) trahit l'attaque.</p>` },
+    { icon:'📋', title:'Ta mission', html:
+      `<p>Tu contrôles <b>CORP\\svc_adsync</b>, le compte de synchronisation Azure AD Connect. Il n'est pas administrateur — mais on ne lui a jamais retiré ses droits de réplication. Sers-t'en pour répliquer le hash d'un Domain Admin et t'emparer du domaine.</p>
+       <p class="lesson-tip">💡 Tape <b>help</b> une fois dans le terminal, ou <b>man &lt;commande&gt;</b> pour comprendre une commande précise.</p>` }
+  ],
+
+  completeTitle:'Domain Admin obtenu',
+  completeSub:"Un simple compte de sync, et tout le domaine réplique.",
+  chainSteps:[
+    {icon:'🔎', label:'Recon'}, {icon:'🧬', label:'Droits de réplication'},
+    {icon:'🔑', label:'Hash répliqué'}, {icon:'👑', label:'Domain Admin'}
+  ],
+  flag:'FLAG{dcsync_replication_getchangesall_no_admin}',
+
+  graph:{
+    nodes:[
+      { id:'svc_adsync', label:'svc_adsync', type:'user' },
+      { id:'grp_adsync', label:'ADSync Operators', type:'group' },
+      { id:'dom', label:'CORP.LOCAL', type:'group' },
+      { id:'p.girard', label:'p.girard', type:'user' },
+      { id:'a.faure', label:'a.faure', type:'admin' }
+    ],
+    edges:[
+      { id:'e_member', from:'svc_adsync', to:'grp_adsync', type:'memberof', label:'MemberOf' },
+      { id:'e_repl', from:'grp_adsync', to:'dom', type:'abuse', label:'DS-Replication-Get-Changes-All (oublié)' },
+      { id:'e_dcsync', from:'dom', to:'a.faure', type:'auth', label:'DCSync → hash NTLM' },
+      { id:'e_owned', from:'svc_adsync', to:'a.faure', type:'owned', label:'Pass-the-Hash' }
+    ]
+  },
+
+  deepDive:{
+    why:"La réplication d'annuaire est un mécanisme légitime et essentiel d'Active Directory : les contrôleurs se synchronisent en s'échangeant tout le contenu de la base, secrets compris. Les droits DS-Replication-Get-Changes et -Get-Changes-All autorisent cet échange. Le problème n'est pas le mécanisme, mais sa délégation : accordés à un compte qui n'est pas un contrôleur de domaine — typiquement le compte de synchronisation Azure AD Connect, ou un compte à qui on a donné ces droits « juste pour un outil » — ils permettent de répliquer le hash de n'importe quel compte sans jamais être administrateur, sans toucher aux comptes visés, et sans rien casser hors-ligne. C'est le chemin par lequel on obtient en pratique le hash de krbtgt qui rend un Golden Ticket possible.",
+    defenses:[
+      "Auditer précisément qui détient DS-Replication-Get-Changes et -Get-Changes-All sur le domaine — la liste doit se limiter aux contrôleurs de domaine et aux comptes strictement nécessaires",
+      "Traiter le compte de synchronisation Azure AD Connect comme un compte à privilèges (Tier 0) : mot de passe long et protégé, connexions restreintes, et retrait de tout droit superflu après installation",
+      "Surveiller les requêtes de réplication (Event ID 4662 sur l'objet domaine avec le GUID de réplication) provenant d'une source qui n'est pas un contrôleur de domaine",
+      "Segmenter les rôles : un outil qui a besoin de lire l'annuaire n'a presque jamais besoin des droits de réplication complets"
+    ],
+    quiz:[
+      { q:"Qu'est-ce qui rend l'attaque DCSync possible sans être Domain Admin ?",
+        options:["Une faille dans le protocole Kerberos","La possession des droits de réplication (DS-Replication-Get-Changes-All), même délégués à un compte non-admin","Un mot de passe krbtgt trop faible","L'accès physique au contrôleur de domaine"],
+        correct:1,
+        explain:"DCSync exploite un mécanisme légitime : la réplication. Seuls les droits de réplication comptent, pas l'appartenance aux Domain Admins — c'est pourquoi une délégation trop large est si dangereuse." },
+      { q:"Pourquoi le compte de synchronisation Azure AD Connect est-il une cible classique de cette attaque ?",
+        options:["Il est toujours membre des Domain Admins","Il est souvent installé avec des droits de réplication larges qui ne sont jamais restreints ensuite","Son mot de passe est stocké en clair par défaut","Il ne peut pas se voir appliquer de politique de mot de passe"],
+        correct:1,
+        explain:"L'installation d'Azure AD Connect accorde des droits de réplication au compte de synchronisation ; faute de durcissement, ce compte non-admin devient un chemin direct vers tous les secrets du domaine." },
+      { q:"Quel événement permet le mieux de détecter un DCSync malveillant ?",
+        options:["Event ID 4724 (changement de mot de passe)","Event ID 4662 (accès à l'objet domaine avec le GUID de réplication) depuis une source qui n'est pas un contrôleur de domaine","Event ID 4769 (demande de ticket de service)","Aucun, l'attaque est totalement invisible"],
+        correct:1,
+        explain:"Une réplication est normale entre contrôleurs de domaine. La même requête (Event ID 4662) venant d'un poste ou d'un compte de service ordinaire est le signal d'alarme d'un DCSync abusif." }
+    ]
+  },
+
+  initState(){ return { dcsyncHash:{} }; },
+
+  handle(lower, cmd, m){
+    const sc = SCENARIOS.dcsync;
+
+    if(lower === 'whoami /priv' || lower === 'whoami'){
+      const u = sc.identities[state.user];
+      print(`<span class="out-info">Utilisateur : ${u.label}</span>`);
+      print(`<span class="out-info">Rôle : ${u.priv}</span>`);
+      print(`<span class="out-info">Groupes : ${u.groups.join(', ')}</span>`);
+      return true;
+    }
+
+    if(lower === 'net user /domain'){
+      print(`<span class="out-info">Comptes du domaine CORP.LOCAL :</span>`);
+      Object.keys(sc.identities).forEach(name => print(`<span class="out-dim">  ${name}</span>`));
+      print(`<span class="out-dim">  krbtgt</span>`);
+      AttackGraph.reveal({ nodes:['svc_adsync','p.girard','a.faure'] });
+      complete('enum');
+      return true;
+    }
+
+    m = lower.match(/^net user (\S+) \/domain$/);
+    if(m){
+      const name = m[1];
+      const u = sc.identities[name];
+      if(!u){
+        if(name === 'krbtgt'){
+          print(`<span class="out-info">Nom du compte : krbtgt</span>`);
+          print(`<span class="out-info">Description : Compte de service Kerberos (signe tous les tickets du domaine)</span>`);
+          print(`<span class="out-warn">⚠ Ce compte ne sert jamais à se connecter — mais répliquer sa clé permet de forger un Golden Ticket.</span>`);
+          return true;
+        }
+        print(`<span class="out-bad">Utilisateur introuvable : ${escapeHtml(name)}</span>`);
+        return true;
+      }
+      print(`<span class="out-info">Nom du compte : ${name}</span>`);
+      print(`<span class="out-info">Description : ${u.desc}</span>`);
+      print(`<span class="out-info">Groupes : ${u.groups.join(', ')}</span>`);
+      if(u.groups.includes('Domain Admins')){
+        print(`<span class="out-warn">⚠ Ce compte est administrateur du domaine — la cible à répliquer.</span>`);
+      }
+      complete('enum');
+      return true;
+    }
+
+    m = lower.match(/^get-objectacl (\S+)$/);
+    if(m){
+      const name = m[1];
+      if(name === 'domain' || name === 'corp.local' || name === 'dc=corp,dc=local'){
+        print(`<span class="out-info">ACL sur l'objet domaine CORP.LOCAL (contexte de nommage) :</span>`);
+        sc.acl['domain'].forEach(e => {
+          if(e.normal){
+            print(`<span class="out-dim">  ${e.principal} — ${e.rights}</span>`);
+          } else {
+            print(`<span class="out-warn">  ${e.principal} — ${e.rights}  ⚠ droits de réplication délégués à un compte non-admin</span>`);
+          }
+        });
+        print(`<span class="out-dim">💡 Tu es membre de CORP\\ADSync Operators : ces droits de réplication sont les tiens.</span>`);
+        AttackGraph.reveal({ edges:['e_member','e_repl'] });
+        complete('replacl');
+        return true;
+      }
+      if(sc.identities[name]){
+        print(`<span class="out-info">ACL sur le compte ${name} :</span>`);
+        print(`<span class="out-dim">  CORP\\Domain Admins — Full Control</span>`);
+        print(`<span class="out-dim">  (rien d'anormal ici — les droits de réplication se posent sur le domaine, pas sur un compte : essaie get-objectacl domain)</span>`);
+        return true;
+      }
+      print(`<span class="out-bad">Objet introuvable : ${escapeHtml(name)}</span>`);
+      return true;
+    }
+
+    m = lower.match(/^mimikatz lsadump::dcsync \/user:(\S+)$/);
+    if(m){
+      const target = m[1];
+      const me = sc.identities[state.user];
+      const hasRepl = sc.acl['domain'].some(e => !e.normal && me.groups.some(g => e.principal.toLowerCase().endsWith(g.toLowerCase())));
+      if(!hasRepl){
+        print(`<span class="out-bad">Accès refusé : la réplication (DCSync) nécessite les droits DS-Replication-Get-Changes-All sur le domaine.</span>`);
+        return true;
+      }
+      const h = sc.hashes[target];
+      if(!h){ print(`<span class="out-bad">Compte introuvable dans l'annuaire : ${escapeHtml(target)}</span>`); return true; }
+      print(`<span class="out-info">Réplication d'annuaire demandée au contrôleur pour ${target}...</span>`);
+      print(`<span class="out-good">Hash NTLM répliqué (sans droits Domain Admin) :</span>`);
+      print(`<span class="out-dim">  ${target}:${h}</span>`);
+      state.extra.dcsyncHash[target] = h;
+      if(target === 'a.faure'){
+        AttackGraph.reveal({ edges:['e_dcsync'], tags:{ 'a.faure':'hash' } });
+        complete('dcsync');
+      } else if(target === 'krbtgt'){
+        print(`<span class="out-warn">🔑 C'est la clé qui signe tous les tickets du domaine — de quoi forger un Golden Ticket (voir le Chapitre Final). Pour cette mission, ce n'est pas nécessaire : réplique plutôt un administrateur du domaine.</span>`);
+      }
+      return true;
+    }
+
+    m = lower.match(/^pth \/target:(\S+) \/user:(\S+) \/hash:(\S+)$/);
+    if(m){
+      const user = m[2], hash = m[3];
+      if(!sc.identities[user]){ print(`<span class="out-bad">Compte inconnu : ${escapeHtml(user)}</span>`); return true; }
+      if(state.extra.dcsyncHash[user] !== hash){
+        print(`<span class="out-bad">Authentification refusée : ce hash ne correspond pas à ${escapeHtml(user)}. Réplique d'abord son hash avec DCSync, puis rejoue-le exactement.</span>`);
+        return true;
+      }
+      state.user = user;
+      updatePrompt();
+      print(`<span class="out-good">Session ouverte en tant que ${sc.identities[user].label} (Pass-the-Hash) — aucun mot de passe saisi.</span>`);
+      AttackGraph.reveal({ edges:['e_owned'] });
+      AttackGraph.markOwned(user);
+      complete('pth');
+      return true;
+    }
+
+    if(lower === 'dir'){
+      if(state.user === 'a.faure'){
+        print(`<span class="out-info"> Répertoire : C:\\Users\\a.faure\\Desktop</span>`);
+        print(`<span class="out-dim">  flag.txt</span>`);
+      } else {
+        print(`<span class="out-info"> Répertoire : C:\\Users\\${state.user}\\Desktop</span>`);
+        print(`<span class="out-dim">  (rien d'intéressant ici)</span>`);
+      }
+      return true;
+    }
+
+    if(lower.startsWith('type ')){
+      const file = cmd.slice(5).trim();
+      if(file.toLowerCase() === 'flag.txt' && state.user === 'a.faure'){
+        print(`<span class="flag-tag">${sc.flag}</span> <button class="copy-btn" onclick="copyFlag(this)">📋 Copier</button>`);
+        print(`<span class="out-good">🎉 Bravo — chaîne complète : droits de réplication oubliés sur un compte non-admin → DCSync du hash d'un Domain Admin → Pass-the-Hash → Domain Admin. Jamais un mot de passe touché.</span>`);
+        print(`<span class="out-dim">🛡️ Pour se défendre : auditer qui détient DS-Replication-Get-Changes-All, traiter le compte Azure AD Connect en Tier 0, et alerter sur tout Event ID 4662 de réplication qui ne vient pas d'un contrôleur de domaine.</span>`);
         complete('flag');
         finishMission();
       } else if(file.toLowerCase() === 'flag.txt'){

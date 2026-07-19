@@ -555,6 +555,25 @@ function playVictorySound(){
   }catch(e){ /* audio non disponible, tant pis */ }
 }
 
+function playDingSound(){
+  if(typeof soundFxEnabled !== 'undefined' && !soundFxEnabled) return;
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    const start = ctx.currentTime;
+    osc.frequency.setValueAtTime(880, start);
+    osc.frequency.exponentialRampToValueAtTime(1318.5, start + 0.09);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(0.08, start + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.22);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + 0.22);
+  }catch(e){ /* audio non disponible, tant pis */ }
+}
+
 function initTerminalInput(){
   const input = document.getElementById('cmd-input');
   input.addEventListener('keydown', (e)=>{

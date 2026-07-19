@@ -102,6 +102,18 @@ Ticket obtenu. Prêt à cracker.</div>
       <p>Une autorité de certification déployée trop vite, un modèle qui laisse le demandeur choisir sa propre identité. Usurpe l'administrateur avec un simple certificat.</p>
       <button class="mode-play" onclick="goToLesson('adcs')">▶ Lancer</button>
     </div>
+    <div class="mode-card active-mode" id="mode-card-shadowcred">
+      <span class="done-badge" id="badge-shadowcred" style="display:none;">✓ Terminé</span>
+      <h4>👻 Scénario 06 — Shadow Credentials</h4>
+      <p>Un droit d'écriture étroit et oublié sur un attribut d'authentification sans mot de passe. Injecte ta propre clé, sans jamais toucher au mot de passe de la cible.</p>
+      <button class="mode-play" onclick="goToLesson('shadowcred')">▶ Lancer</button>
+    </div>
+    <div class="mode-card active-mode" id="mode-card-dcsync">
+      <span class="done-badge" id="badge-dcsync" style="display:none;">✓ Terminé</span>
+      <h4>🧬 Scénario 07 — DCSync</h4>
+      <p>Un compte de synchronisation non-admin a gardé les droits de réplication du domaine. Fais-toi passer pour un contrôleur et réplique le hash d'un Domain Admin.</p>
+      <button class="mode-play" onclick="goToLesson('dcsync')">▶ Lancer</button>
+    </div>
   </div>
 
   <div class="epic-banner-wrap libre-wrap">
@@ -240,6 +252,14 @@ Ticket obtenu. Prêt à cracker.</div>
         <h4>PKINIT</h4>
         <p>Extension de Kerberos qui permet de s'authentifier avec un certificat plutôt qu'un mot de passe. Un certificat forgé pour une identité suffit à obtenir un ticket (TGT) valide pour cette identité.</p>
       </li>
+      <li class="gloss-card">
+        <h4>Shadow Credentials (msDS-KeyCredentialLink)</h4>
+        <p>Attribut d'un compte qui stocke les clés d'authentification sans mot de passe (Windows Hello for Business, FIDO2). Un droit d'écriture sur ce seul attribut permet d'y injecter sa propre clé et de s'authentifier comme le compte, sans jamais toucher à son mot de passe.</p>
+      </li>
+      <li class="gloss-card">
+        <h4>Réplication / DCSync</h4>
+        <p>Les contrôleurs de domaine se synchronisent en <b>répliquant</b> leur base, secrets compris. Un compte détenant les droits <b>DS-Replication-Get-Changes-All</b> peut se faire passer pour un DC et répliquer le hash de n'importe quel compte — c'est l'attaque <b>DCSync</b>, possible sans être Domain Admin.</p>
+      </li>
     </ul>
   </div>
 </section>
@@ -273,6 +293,7 @@ Ticket obtenu. Prêt à cracker.</div>
       <p id="explain-why"></p>
       <h3 class="defense-heading">🛡️ Comment s'en défendre</h3>
       <ul class="defense-list" id="explain-defenses"></ul>
+      <div id="explain-quiz" class="quiz-block" style="display:none;"></div>
     </div>
   </div>
 </section>

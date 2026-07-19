@@ -156,7 +156,7 @@ const PROGRESS_KEY = 'goldenticket_progress_v1';
 function loadProgress(){
   try{
     const raw = localStorage.getItem(PROGRESS_KEY);
-    if(!raw) return { completed:{}, bestTimes:{}, runHistory:{}, achievements:{}, librePaths:{}, blueteamCases:{} };
+    if(!raw) return { completed:{}, bestTimes:{}, runHistory:{}, achievements:{}, librePaths:{}, blueteamCases:{}, quizPassed:{} };
     const parsed = JSON.parse(raw);
     return {
       completed: parsed.completed || {},
@@ -164,17 +164,19 @@ function loadProgress(){
       runHistory: parsed.runHistory || {},
       achievements: parsed.achievements || {},
       librePaths: parsed.librePaths || {},
-      blueteamCases: parsed.blueteamCases || {}
+      blueteamCases: parsed.blueteamCases || {},
+      quizPassed: parsed.quizPassed || {}
     };
   }catch(e){
-    return { completed:{}, bestTimes:{}, runHistory:{}, achievements:{}, librePaths:{}, blueteamCases:{} };
+    return { completed:{}, bestTimes:{}, runHistory:{}, achievements:{}, librePaths:{}, blueteamCases:{}, quizPassed:{} };
   }
 }
 function saveProgress(){
   try{
     localStorage.setItem(PROGRESS_KEY, JSON.stringify({
       completed: completedScenarios, bestTimes: bestTimes, runHistory: runHistory,
-      achievements: achievements, librePaths: librePaths, blueteamCases: blueteamCases
+      achievements: achievements, librePaths: librePaths, blueteamCases: blueteamCases,
+      quizPassed: quizPassed
     }));
   }catch(e){ /* stockage indisponible (navigation privée...), tant pis */ }
 }
@@ -198,6 +200,8 @@ const runHistory = pruneOrphanIds(savedProgress.runHistory);
 const achievements = savedProgress.achievements;
 const librePaths = savedProgress.librePaths;
 const blueteamCases = savedProgress.blueteamCases;
+const quizPassed = savedProgress.quizPassed;
+const QUIZ_SCENARIOS = ['kerberoast','pth','acl','azuread','adcs','shadowcred','dcsync','goldenticket'];
 
 function markScenarioComplete(scenarioId){
   completedScenarios[scenarioId] = true;
@@ -226,6 +230,7 @@ function resetProgress(){
   Object.keys(achievements).forEach(k => delete achievements[k]);
   Object.keys(librePaths).forEach(k => delete librePaths[k]);
   Object.keys(blueteamCases).forEach(k => delete blueteamCases[k]);
+  Object.keys(quizPassed).forEach(k => delete quizPassed[k]);
   saveProgress();
   updateHomeBadges();
 }
@@ -240,7 +245,20 @@ const ACHIEVEMENTS = [
   { id:'domain_master', icon:'🏆', title:'Maître du domaine', desc:"Terminer tous les scénarios" },
   { id:'ghost',         icon:'🥷', title:'Fantôme',          desc:"Terminer une mission sans jamais déclencher l'alerte SOC" },
   { id:'blueteam_detective', icon:'🕵️', title:'Détective complet', desc:"Résoudre les 3 dossiers d'incident différents du Mode Blue Team" },
+  { id:'quiz_master', icon:'📚', title:'Théoricien', desc:"Réussir sans faute le quiz de défense de tous les scénarios techniques" },
 ];
+
+function recordQuizPass(scenarioId){
+  if(!QUIZ_SCENARIOS.includes(scenarioId)) return null;
+  quizPassed[scenarioId] = true;
+  let unlocked = null;
+  if(!achievements['quiz_master'] && QUIZ_SCENARIOS.every(id => quizPassed[id])){
+    achievements['quiz_master'] = { date: new Date().toISOString() };
+    unlocked = ACHIEVEMENTS.find(a => a.id === 'quiz_master');
+  }
+  saveProgress();
+  return unlocked;
+}
 
 function unlockAchievements({ scenarioId, elapsed, hintsUsed, manCount, pathTaken, blueteamCaseId, opsecEnabled, detected }){
   const newlyUnlocked = [];
@@ -294,7 +312,8 @@ function exportProgress(){
   const payload = {
     version:1, exportedAt:new Date().toISOString(),
     completed: completedScenarios, bestTimes: bestTimes, runHistory: runHistory,
-    achievements: achievements, librePaths: librePaths, blueteamCases: blueteamCases
+    achievements: achievements, librePaths: librePaths, blueteamCases: blueteamCases,
+    quizPassed: quizPassed
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
   const url = URL.createObjectURL(blob);
@@ -322,12 +341,14 @@ function importProgress(file){
       Object.keys(achievements).forEach(k => delete achievements[k]);
       Object.keys(librePaths).forEach(k => delete librePaths[k]);
       Object.keys(blueteamCases).forEach(k => delete blueteamCases[k]);
+      Object.keys(quizPassed).forEach(k => delete quizPassed[k]);
       Object.assign(completedScenarios, pruneOrphanIds(data.completed || {}));
       Object.assign(bestTimes, pruneOrphanIds(data.bestTimes || {}));
       Object.assign(runHistory, pruneOrphanIds(data.runHistory || {}));
       Object.assign(achievements, data.achievements || {});
       Object.assign(librePaths, data.librePaths || {});
       Object.assign(blueteamCases, data.blueteamCases || {});
+      Object.assign(quizPassed, pruneOrphanIds(data.quizPassed || {}));
       saveProgress();
       updateHomeBadges();
       renderAchievementsGrid();
@@ -633,13 +654,89 @@ function downloadCertificate(){
   a.remove();
 }
 
+let quizState = { total:0, correct:0, answered:0 };
+
 function showExplain(){
   const sc = SCENARIOS[state.scenarioId];
   document.getElementById('explain-tag').textContent = `🛡️ ANALYSE · ${sc.tag.split('·')[1] ? sc.tag.split('·')[1].trim() : sc.tag}`;
   document.getElementById('explain-title').textContent = 'Pourquoi ça marche';
   document.getElementById('explain-why').textContent = sc.deepDive.why;
   document.getElementById('explain-defenses').innerHTML = sc.deepDive.defenses.map(d => `<li>${d}</li>`).join('');
+  renderQuiz(sc);
   showView('view-explain');
+}
+
+function renderQuiz(sc){
+  const host = document.getElementById('explain-quiz');
+  if(!host) return;
+  const quiz = sc.deepDive.quiz;
+  if(!quiz || !quiz.length){
+    host.style.display = 'none';
+    host.innerHTML = '';
+    return;
+  }
+  host.style.display = '';
+  quizState = { total: quiz.length, correct: 0, answered: 0 };
+  host.innerHTML = `<h3 class="defense-heading">🧠 Quiz éclair</h3>` +
+    quiz.map((q, qi) => `
+      <div class="quiz-item" id="quiz-item-${qi}">
+        <p class="quiz-q">${qi + 1}. ${q.q}</p>
+        <div class="quiz-options">
+          ${q.options.map((opt, oi) => `<button type="button" class="quiz-opt" onclick="answerQuiz(${qi},${oi})">${opt}</button>`).join('')}
+        </div>
+        <p class="quiz-feedback" id="quiz-feedback-${qi}" style="display:none;"></p>
+      </div>
+    `).join('') +
+    `<div id="quiz-result" class="quiz-result" style="display:none;"></div>`;
+}
+
+function answerQuiz(qi, oi){
+  const sc = SCENARIOS[state.scenarioId];
+  const quiz = sc.deepDive.quiz;
+  if(!quiz || !quiz[qi]) return;
+  const q = quiz[qi];
+  const item = document.getElementById('quiz-item-' + qi);
+  if(!item || item.classList.contains('answered')) return;
+  item.classList.add('answered');
+
+  const buttons = item.querySelectorAll('.quiz-opt');
+  buttons.forEach((b, idx) => {
+    b.disabled = true;
+    if(idx === q.correct) b.classList.add('correct');
+    else if(idx === oi) b.classList.add('incorrect');
+  });
+
+  const isCorrect = oi === q.correct;
+  if(isCorrect) quizState.correct++;
+  quizState.answered++;
+
+  if(isCorrect){
+    if(typeof playDingSound === 'function') playDingSound();
+    if(typeof vibrate === 'function') vibrate(30);
+  } else {
+    if(typeof playBuzzSound === 'function') playBuzzSound();
+    if(typeof vibrate === 'function') vibrate([20, 40, 20]);
+  }
+
+  const fb = document.getElementById('quiz-feedback-' + qi);
+  if(fb){
+    fb.style.display = '';
+    fb.innerHTML = `<span class="${isCorrect ? 'quiz-verdict-ok' : 'quiz-verdict-ko'}">${isCorrect ? '✔ Exact.' : '✘ Pas tout à fait.'}</span> ${q.explain}`;
+  }
+
+  if(quizState.answered === quizState.total){
+    const resultHost = document.getElementById('quiz-result');
+    if(!resultHost) return;
+    resultHost.style.display = '';
+    let unlocked = null;
+    if(quizState.correct === quizState.total && typeof recordQuizPass === 'function'){
+      unlocked = recordQuizPass(state.scenarioId);
+      if(typeof playVictorySound === 'function') playVictorySound();
+    }
+    resultHost.innerHTML = `<div class="quiz-score">Score : ${quizState.correct}/${quizState.total}</div>` +
+      (unlocked ? `<div class="mc-ach-toast"><span class="ach-icon">${unlocked.icon}</span><span><b>Succès débloqué : ${unlocked.title}</b> — ${unlocked.desc}</span></div>` : '');
+    if(typeof renderAchievementsGrid === 'function') renderAchievementsGrid();
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
