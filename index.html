@@ -114,6 +114,12 @@ Ticket obtenu. Prêt à cracker.</div>
       <p>Un compte de synchronisation non-admin a gardé les droits de réplication du domaine. Fais-toi passer pour un contrôleur et réplique le hash d'un Domain Admin.</p>
       <button class="mode-play" onclick="goToLesson('dcsync')">▶ Lancer</button>
     </div>
+    <div class="mode-card active-mode" id="mode-card-unconstrained">
+      <span class="done-badge" id="badge-unconstrained" style="display:none;">✓ Terminé</span>
+      <h4>🪤 Scénario 08 — Délégation sans contrainte</h4>
+      <p>Un serveur applicatif oublié en délégation sans contrainte. Force le contrôleur de domaine à s'y authentifier (PetitPotam), capture son ticket, deviens-le.</p>
+      <button class="mode-play" onclick="goToLesson('unconstrained')">▶ Lancer</button>
+    </div>
   </div>
 
   <div class="epic-banner-wrap libre-wrap">
@@ -259,6 +265,14 @@ Ticket obtenu. Prêt à cracker.</div>
       <li class="gloss-card">
         <h4>Réplication / DCSync</h4>
         <p>Les contrôleurs de domaine se synchronisent en <b>répliquant</b> leur base, secrets compris. Un compte détenant les droits <b>DS-Replication-Get-Changes-All</b> peut se faire passer pour un DC et répliquer le hash de n'importe quel compte — c'est l'attaque <b>DCSync</b>, possible sans être Domain Admin.</p>
+      </li>
+      <li class="gloss-card">
+        <h4>Délégation sans contrainte (Unconstrained Delegation)</h4>
+        <p>Réglage d'un compte machine qui fait qu'il reçoit et met en cache une <b>copie complète et réutilisable du TGT</b> de tout compte qui s'y authentifie. Normal pour un contrôleur de domaine, dangereux ailleurs — capturer ce ticket revient à devenir la machine qui s'est connectée.</p>
+      </li>
+      <li class="gloss-card">
+        <h4>Coercition d'authentification (PetitPotam)</h4>
+        <p>Technique qui force une machine distante — parfois un contrôleur de domaine — à initier une authentification vers un serveur choisi par l'attaquant, en abusant d'un protocole Windows légitime (MS-EFSRPC). Combinée à la délégation sans contrainte, elle permet de capturer le ticket de la machine coercée.</p>
       </li>
     </ul>
   </div>
