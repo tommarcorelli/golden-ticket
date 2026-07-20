@@ -120,6 +120,12 @@ Ticket obtenu. Prêt à cracker.</div>
       <p>Un serveur applicatif oublié en délégation sans contrainte. Force le contrôleur de domaine à s'y authentifier (PetitPotam), capture son ticket, deviens-le.</p>
       <button class="mode-play" onclick="goToLesson('unconstrained')">▶ Lancer</button>
     </div>
+    <div class="mode-card active-mode" id="mode-card-breakglass">
+      <span class="done-badge" id="badge-breakglass" style="display:none;">✓ Terminé</span>
+      <h4>🚨 Scénario 09 — Contournement Conditional Access</h4>
+      <p>Un compte de secours exclu de toutes les politiques Conditional Access, mot de passe jamais changé depuis 2019. Repère l'exclusion, retrouve le mot de passe, deviens Global Admin sans jamais passer le MFA.</p>
+      <button class="mode-play" onclick="goToLesson('breakglass')">▶ Lancer</button>
+    </div>
   </div>
 
   <div class="epic-banner-wrap libre-wrap">
@@ -273,6 +279,14 @@ Ticket obtenu. Prêt à cracker.</div>
       <li class="gloss-card">
         <h4>Coercition d'authentification (PetitPotam)</h4>
         <p>Technique qui force une machine distante — parfois un contrôleur de domaine — à initier une authentification vers un serveur choisi par l'attaquant, en abusant d'un protocole Windows légitime (MS-EFSRPC). Combinée à la délégation sans contrainte, elle permet de capturer le ticket de la machine coercée.</p>
+      </li>
+      <li class="gloss-card">
+        <h4>Conditional Access (Entra ID)</h4>
+        <p>Ensemble de politiques qui imposent des conditions (MFA, appareil conforme...) à la connexion selon qui se connecte et depuis où. Une politique ne protège que les comptes qu'elle cible réellement — un compte en <b>exclusion</b> continue de s'authentifier comme si la politique n'existait pas pour lui.</p>
+      </li>
+      <li class="gloss-card">
+        <h4>Compte de secours (Break-glass account)</h4>
+        <p>Compte volontairement exclu de toutes les politiques Conditional Access, créé pour reprendre la main en cas de panne du fournisseur d'identité. Pratique recommandée à condition d'être étroitement surveillé — un compte oublié après sa création devient un angle mort permanent.</p>
       </li>
     </ul>
   </div>
