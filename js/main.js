@@ -244,7 +244,7 @@ const ACHIEVEMENTS = [
   { id:'golden_finisher',icon:'👑', title:'Golden Ticket',  desc:"Terminer le Chapitre Final" },
   { id:'domain_master', icon:'🏆', title:'Maître du domaine', desc:"Terminer tous les scénarios" },
   { id:'ghost',         icon:'🥷', title:'Fantôme',          desc:"Terminer une mission sans jamais déclencher l'alerte SOC" },
-  { id:'blueteam_detective', icon:'🕵️', title:'Détective complet', desc:"Résoudre les 3 dossiers d'incident différents du Mode Blue Team" },
+  { id:'blueteam_detective', icon:'🕵️', title:'Détective complet', desc:"Résoudre les 4 dossiers d'incident différents du Mode Blue Team" },
   { id:'quiz_master', icon:'📚', title:'Théoricien', desc:"Réussir sans faute le quiz de défense de tous les scénarios techniques" },
 ];
 

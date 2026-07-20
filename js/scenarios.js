@@ -2156,6 +2156,69 @@ SCENARIOS.blueteam = {
             explain:"Sans LAPS, un même mot de passe admin local réutilisé sur tout le parc transforme un seul hash volé en clé passe-partout. LAPS garantit un mot de passe unique et changé automatiquement par machine." }
         ]
       }
+    },
+    {
+      id:'unconstrained',
+      ticket:'INC-2024-0711',
+      alertLine:"le contrôleur de domaine a ouvert une session sortante inhabituelle vers un serveur applicatif",
+      readmeText:`<span class="out-dim">"Alerte SIEM déclenchée à 05:09 : le compte machine DC01$ a ouvert une session réseau sur WEB01 — un serveur applicatif qui n'a normalement aucune raison de recevoir une authentification d'un contrôleur de domaine. Une requête de réplication d'annuaire a suivi peu après. Détermine s'il s'agit d'une attaque, laquelle, quel compte est concerné, et reconstitue la chronologie complète avant de clôturer le ticket." — Notes d'astreinte</span>`,
+      techniqueLabel:'Délégation sans contrainte + coercition (PetitPotam)',
+      CORRECT_TECHNIQUE:['délégation sans contrainte','delegation sans contrainte','unconstrained delegation','petitpotam','coercition','délégation sans contrainte + petitpotam','coercition petitpotam'],
+      CORRECT_ACCOUNT:'dc01$',
+      CORRECT_ORDER:'a,b,c,d',
+      EVENTS:{
+        A:{ time:'05:09:58', text:"EventID 5145 (Accès détaillé à un partage réseau) — Compte : DC01$ — Partage/pipe : \\\\WEB01\\lsarpc (MS-EFSRPC) — Résultat : Autorisé ⚠ un contrôleur de domaine qui répond à une requête EFSRPC vers un serveur applicatif est inhabituel" },
+        B:{ time:'05:10:03', text:'EventID 4688 (Nouveau processus créé) — Compte : svc_web — Détail : exécution de mimikatz.exe — Poste : WEB01' },
+        C:{ time:'05:10:47', text:"EventID 4624 (Ouverture de session réussie) — Compte : DC01$ — Poste source/destination : WEB01 — Package : Kerberos — Type d'ouverture : 3 (réseau) ⚠ un compte machine de DC ne devrait jamais s'authentifier SUR un serveur applicatif tiers" },
+        D:{ time:'05:11:20', text:"EventID 4662 (Accès à un objet du service d'annuaire) — Compte : DC01$ — Objet : CN=krbtgt — Droits demandés : DS-Replication-Get-Changes-All — Adresse réseau source : 10.0.0.50 (WEB01) ⚠ une réplication d'annuaire ne devrait jamais provenir d'une adresse qui n'est pas un contrôleur de domaine" }
+      },
+      EVENTS_DISPLAY_ORDER:['C','A','D','B'],
+      hints:[
+        ["Avant de conclure quoi que ce soit, regarde ce qui se trouve dans ce dossier d'incident.",
+         "Il y a un journal de sécurité dans ce dossier — regarde son contenu.",
+         "Commence par `dir`, puis `type security.log` pour lire les événements corrélés à l'alerte."],
+        ["Un compte machine de contrôleur de domaine ne devrait jamais se retrouver à s'authentifier SUR un autre serveur du domaine — c'est l'inverse du sens normal des choses.",
+         "Regarde d'où provient la requête de réplication d'annuaire (EventID 4662) : son adresse réseau source ne correspond à aucun contrôleur de domaine connu.",
+         "Un serveur applicatif a reçu l'authentification d'un compte machine de DC, puis une réplication a été demandée depuis son adresse : c'est une délégation sans contrainte combinée à une coercition (PetitPotam) — soumets ta conclusion avec `report --technique petitpotam`."],
+        ["Regarde quel compte est directement concerné par l'ouverture de session anormale et la réplication qui suit.",
+         "Ce n'est pas svc_web (qui n'a fait qu'exécuter un outil localement) : c'est le compte machine dont le ticket a été capturé et réutilisé.",
+         "Le compte compromis est DC01$ — soumets-le avec `report --account dc01$`."],
+        ["Les événements ne sont pas affichés dans l'ordre chronologique du journal — base-toi sur les horodatages, pas sur l'ordre d'affichage.",
+         "Classe les 4 événements du plus ancien au plus récent d'après leur heure exacte.",
+         "Chronologie correcte, du plus ancien au plus récent : `report --order a,b,c,d`"],
+        ["Une fois les trois éléments du rapport soumis et corrects, il ne reste plus qu'à clôturer le dossier.",
+         "Il existe une commande dédiée pour clôturer une investigation terminée.",
+         "Clôture le dossier avec `close-incident`."]
+      ],
+      completeSub:"Coercition et abus de délégation sans contrainte détectés avant l'escalade.",
+      chainSteps:[
+        {icon:'📄', label:'Logs lus'}, {icon:'🔍', label:'Technique'},
+        {icon:'🧭', label:'Chronologie'}, {icon:'📝', label:'Rapport clos'}
+      ],
+      flag:'FLAG{blueteam_unconstrained_petitpotam_detected}',
+      deepDive:{
+        why:"Cette attaque ne laisse pas un seul signal évident, mais une série d'anomalies directionnelles : un compte machine de contrôleur de domaine qui s'authentifie SUR un serveur applicatif (le sens inverse du trafic normal), un accès EFSRPC vers ce même serveur juste avant (signature typique d'une coercition comme PetitPotam), et surtout une requête de réplication d'annuaire (Event ID 4662) dont l'adresse réseau source ne correspond à aucun contrôleur de domaine légitime. Prise isolément, chaque ligne pourrait presque passer inaperçue — c'est leur direction et leur origine réseau, croisées, qui trahissent l'attaque.",
+        defenses:[
+          "Surveiller toute session (Event ID 4624) où le compte est un compte machine de contrôleur de domaine (suffixe $) et où la machine destination n'est pas elle-même un DC",
+          "Alerter sur les requêtes EFSRPC/lsarpc (Event ID 5145) entrantes vers des serveurs qui ne sont pas des contrôleurs de domaine — signature des outils de coercition comme PetitPotam",
+          "Corréler l'adresse réseau source des événements de réplication (4662 avec le GUID de réplication) : elle doit toujours correspondre à un contrôleur de domaine connu",
+          "Auditer et supprimer la délégation sans contrainte sur tout objet ordinateur qui n'est pas un contrôleur de domaine"
+        ],
+        quiz:[
+          { q:"Quelle direction de connexion est l'anomalie centrale de cet incident ?",
+            options:["Un compte machine de contrôleur de domaine qui s'authentifie SUR un serveur applicatif tiers","Un utilisateur standard qui se connecte à son propre poste","Un contrôleur de domaine qui redémarre en pleine nuit","Une sauvegarde planifiée qui s'exécute normalement"],
+            correct:0,
+            explain:"Un compte machine de DC (ex. DC01$) reçoit habituellement des connexions, il ne s'authentifie pas SUR un serveur applicatif tiers — ce sens inversé est le signal directionnel clé de la coercition." },
+          { q:"Pourquoi l'adresse réseau source de l'événement 4662 (réplication) est-elle si importante ici ?",
+            options:["Elle ne l'est pas, seul le nom du compte compte","Une réplication légitime provient toujours d'un contrôleur de domaine ; ici elle provient de l'adresse du serveur applicatif WEB01","Elle indique simplement l'heure de la requête","Elle permet de connaître le fuseau horaire du serveur"],
+            correct:1,
+            explain:"Le compte DC01$ est légitime pour répliquer, mais une réplication qui provient de l'adresse de WEB01 (et non d'un contrôleur de domaine) prouve que son ticket a été volé et rejoué ailleurs." },
+          { q:"Quelle mesure défensive s'attaque directement à la cause racine de cet incident ?",
+            options:["Auditer et supprimer la délégation sans contrainte sur les objets ordinateur qui ne sont pas des contrôleurs de domaine","Forcer un changement de mot de passe mensuel sur tous les comptes","Désactiver Kerberos au profit de NTLM","Augmenter la rétention des journaux d'événements"],
+            correct:0,
+            explain:"Sans délégation sans contrainte sur un serveur qui n'en a pas besoin, aucune coercition ne permettrait de capturer le ticket d'un contrôleur de domaine — c'est la faille de configuration à corriger en priorité."}
+        ]
+      }
     }
   ],
 
