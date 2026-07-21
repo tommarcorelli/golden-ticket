@@ -471,6 +471,8 @@ SCENARIOS.goldenticket = {
 
   completeTitle:'👑 GOLDEN TICKET FORGÉ',
   completeSub:'Tu contrôles désormais le domaine tout entier — pour toujours.',
+  certLabel:'Golden Ticket',
+  certDomainLine:'pour avoir compromis intégralement le domaine CORP.LOCAL',
   chainSteps:[
     {icon:'🎟️', label:'Kerberoast'}, {icon:'🗂️', label:'ACL'},
     {icon:'🔑', label:'krbtgt'}, {icon:'👑', label:'Golden Ticket'}
@@ -3952,6 +3954,8 @@ SCENARIOS.hybridbridge = {
 
   completeTitle:'🌉 PONT HYBRIDE FRANCHI',
   completeSub:'Un seul serveur compromis — le domaine on-prem ET le tenant cloud tombent ensemble.',
+  certLabel:'Pont Hybride',
+  certDomainLine:"pour avoir compromis à la fois le domaine on-prem CORP.LOCAL et le tenant cloud corp.onmicrosoft.com",
   chainSteps:[
     {icon:'🗄️', label:'Base ADSync'}, {icon:'🔓', label:'Identifiants déchiffrés'},
     {icon:'🧬', label:'DCSync + Golden Ticket'}, {icon:'☁️', label:'Global Admin cloud'}

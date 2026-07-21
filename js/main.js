@@ -590,6 +590,9 @@ function startReplayFromFile(file){
 
 function downloadCertificate(){
   const sc = SCENARIOS[state.scenarioId];
+  const certLabel = sc.certLabel || 'Golden Ticket';
+  const certDomainLine = sc.certDomainLine || 'pour avoir compromis intégralement le domaine CORP.LOCAL';
+  const chainLine = (sc.chainSteps || []).map(s => s.label).join(' → ');
   const name = (prompt('Ton nom ou pseudo pour le certificat :', 'CORP\\Domain Admin') || 'CORP\\Domain Admin').slice(0, 40);
   const timeText = document.getElementById('mc-time').textContent;
   const cmdsText = document.getElementById('mc-cmds').textContent;
@@ -617,7 +620,7 @@ function downloadCertificate(){
 
   ctx.fillStyle = '#ffffff';
   ctx.font = '700 50px Georgia, "Times New Roman", serif';
-  ctx.fillText('Certificat de Golden Ticket', 600, 205);
+  ctx.fillText(`Certificat de ${certLabel}`, 600, 205);
 
   ctx.fillStyle = '#b8b3c9';
   ctx.font = '20px monospace';
@@ -629,8 +632,8 @@ function downloadCertificate(){
 
   ctx.fillStyle = '#e5e1f0';
   ctx.font = '18px monospace';
-  ctx.fillText("pour avoir compromis intégralement le domaine CORP.LOCAL", 600, 375);
-  ctx.fillText("Kerberoasting → Pass-the-Hash → Abus d'ACL → Golden Ticket (DCSync + forge krbtgt)", 600, 402);
+  ctx.fillText(certDomainLine, 600, 375);
+  ctx.fillText(chainLine, 600, 402);
 
   ctx.fillStyle = '#a78bfa';
   ctx.font = '700 22px monospace';
@@ -650,7 +653,7 @@ function downloadCertificate(){
   const url = canvas.toDataURL('image/png');
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'golden-ticket-certificat.png';
+  a.download = `${state.scenarioId}-certificat.png`;
   document.body.appendChild(a);
   a.click();
   a.remove();
