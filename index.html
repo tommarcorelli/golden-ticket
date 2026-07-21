@@ -155,6 +155,20 @@ Ticket obtenu. Prêt à cracker.</div>
       <div class="epic-cta">▶ Jouer</div>
     </div>
   </div>
+
+  <div class="epic-banner-wrap hybrid-wrap">
+    <div class="epic-banner hybrid-banner" onclick="goToLesson('hybridbridge')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();goToLesson('hybridbridge');}" role="button" tabindex="0" aria-label="Jouer le chapitre final II, Le Pont Hybride">
+      <div class="epic-glow"></div>
+      <div class="epic-crown">🌉</div>
+      <div class="epic-content">
+        <div class="epic-eyebrow">🌉 Chapitre final II</div>
+        <span class="done-badge epic-badge" id="badge-hybridbridge" style="display:none;">✓ Terminé</span>
+        <h3>Un serveur, <span class="grad-hybrid">deux royaumes</span></h3>
+        <p>Compromets le serveur Azure AD Connect : déchiffre ses deux connecteurs, forge un Golden Ticket on-prem ET deviens Global Administrator du tenant cloud — le même pivot ouvre les deux mondes.</p>
+      </div>
+      <div class="epic-cta hybrid-cta">▶ Jouer</div>
+    </div>
+  </div>
 </section>
 
 <!-- ============ LEÇON ============ -->
@@ -287,6 +301,10 @@ Ticket obtenu. Prêt à cracker.</div>
       <li class="gloss-card">
         <h4>Compte de secours (Break-glass account)</h4>
         <p>Compte volontairement exclu de toutes les politiques Conditional Access, créé pour reprendre la main en cas de panne du fournisseur d'identité. Pratique recommandée à condition d'être étroitement surveillé — un compte oublié après sa création devient un angle mort permanent.</p>
+      </li>
+      <li class="gloss-card">
+        <h4>Azure AD Connect (pont hybride)</h4>
+        <p>Serveur qui synchronise un annuaire on-prem avec un tenant cloud Entra ID. Il détient les identifiants de <b>deux connecteurs</b> (on-prem et cloud), chiffrés localement avec les clés DPAPI de la machine — ce qui en fait un actif Tier 0 : le compromettre peut livrer les deux royaumes à la fois.</p>
       </li>
     </ul>
   </div>

@@ -201,7 +201,7 @@ const achievements = savedProgress.achievements;
 const librePaths = savedProgress.librePaths;
 const blueteamCases = savedProgress.blueteamCases;
 const quizPassed = savedProgress.quizPassed;
-const QUIZ_SCENARIOS = ['kerberoast','pth','acl','azuread','adcs','shadowcred','dcsync','unconstrained','breakglass','goldenticket'];
+const QUIZ_SCENARIOS = ['kerberoast','pth','acl','azuread','adcs','shadowcred','dcsync','unconstrained','breakglass','goldenticket','hybridbridge'];
 
 function markScenarioComplete(scenarioId){
   completedScenarios[scenarioId] = true;
@@ -242,6 +242,7 @@ const ACHIEVEMENTS = [
   { id:'curious',       icon:'🧠', title:'Curieux',         desc:"Consulter man au moins 3 fois dans une mission" },
   { id:'all_routes',    icon:'🧭', title:'Toutes les routes', desc:"Terminer le Mode Libre par ses 3 chemins différents (Helpdesk, Pass-the-Hash, Server Admins)" },
   { id:'golden_finisher',icon:'👑', title:'Golden Ticket',  desc:"Terminer le Chapitre Final" },
+  { id:'hybrid_finisher',icon:'🌉', title:'Pont Hybride',  desc:"Terminer le Chapitre Final II" },
   { id:'domain_master', icon:'🏆', title:'Maître du domaine', desc:"Terminer tous les scénarios" },
   { id:'ghost',         icon:'🥷', title:'Fantôme',          desc:"Terminer une mission sans jamais déclencher l'alerte SOC" },
   { id:'blueteam_detective', icon:'🕵️', title:'Détective complet', desc:"Résoudre les 4 dossiers d'incident différents du Mode Blue Team" },
@@ -274,6 +275,7 @@ function unlockAchievements({ scenarioId, elapsed, hintsUsed, manCount, pathTake
   if(elapsed < 45) unlock('speedster');
   if(manCount >= 3) unlock('curious');
   if(scenarioId === 'goldenticket') unlock('golden_finisher');
+  if(scenarioId === 'hybridbridge') unlock('hybrid_finisher');
   if(opsecEnabled && !detected) unlock('ghost');
 
   if(scenarioId === 'libre' && pathTaken){
