@@ -2225,6 +2225,69 @@ SCENARIOS.blueteam = {
             explain:"Sans délégation sans contrainte sur un serveur qui n'en a pas besoin, aucune coercition ne permettrait de capturer le ticket d'un contrôleur de domaine — c'est la faille de configuration à corriger en priorité."}
         ]
       }
+    },
+    {
+      id:'breakglass',
+      ticket:'INC-2024-0902',
+      alertLine:"un compte à privilèges permanents s'est connecté depuis une adresse inhabituelle, sans MFA",
+      readmeText:`<span class="out-dim">"Alerte déclenchée à 03:14 : une rafale d'échecs de connexion suivie d'un succès sur le compte breakglass.admin — un compte de secours qui ne devrait quasiment jamais servir. Aucun MFA n'a été demandé. Détermine s'il s'agit d'une attaque, laquelle, quel compte est concerné, et reconstitue la chronologie complète avant de clôturer le ticket." — Notes d'astreinte</span>`,
+      techniqueLabel:'Contournement de Conditional Access via un compte de secours',
+      CORRECT_TECHNIQUE:['conditional access','contournement conditional access','compte de secours','break-glass','breakglass','bypass mfa','contournement mfa via compte de secours','password spray'],
+      CORRECT_ACCOUNT:'breakglass.admin',
+      CORRECT_ORDER:'a,b,c,d',
+      EVENTS:{
+        A:{ time:'03:14:02', text:"Journal de connexion Entra ID — Compte : breakglass.admin — Résultat : Échec (identifiants incorrects) — 46 tentatives en 90 secondes ⚠ signature typique d'une pulvérisation de mots de passe (password spray)" },
+        B:{ time:'03:15:41', text:"Journal de connexion Entra ID — Compte : breakglass.admin — Résultat : Succès — Conditional Access : Non appliqué (compte exclu) — MFA : Non requis — Adresse IP : 187.62.14.9 (hors plage habituelle de l'entreprise) ⚠" },
+        C:{ time:'03:15:44', text:"Journal d'audit Entra ID — Rôle actif sur le compte : Global Administrator — Attribution permanente depuis 2019, non éligible PIM, jamais réévaluée ⚠ aucun contrôle d'accès juste-à-temps sur ce rôle critique" },
+        D:{ time:'03:17:09', text:"Journal d'audit Entra ID — Action : Ajout d'un identifiant (clé secrète) à une application principale de service à privilèges élevés — effectuée par breakglass.admin, deux minutes après la connexion ⚠ signe une tentative de persistance" }
+      },
+      EVENTS_DISPLAY_ORDER:['D','B','A','C'],
+      hints:[
+        ["Avant de conclure quoi que ce soit, regarde ce qui se trouve dans ce dossier d'incident.",
+         "Il y a un journal de sécurité dans ce dossier — regarde son contenu.",
+         "Commence par `dir`, puis `type security.log` pour lire les événements corrélés à l'alerte."],
+        ["Une rafale d'échecs de connexion suivie d'un succès, sans le moindre MFA demandé, sur un compte censé ne presque jamais servir : pourquoi le MFA n'a-t-il jamais été exigé ?",
+         "Regarde le champ Conditional Access de l'événement de connexion réussie : il indique explicitement pourquoi aucune politique ne s'est appliquée.",
+         "Rafale d'échecs suivie d'un succès sans MFA, sur un compte exclu des politiques Conditional Access : c'est un contournement via un compte de secours — soumets ta conclusion avec `report --technique breakglass`."],
+        ["Regarde quel compte concentre tous ces événements, de la rafale d'échecs jusqu'à l'action de persistance finale.",
+         "Un seul et même compte apparaît dans les quatre événements.",
+         "Le compte compromis est breakglass.admin — soumets-le avec `report --account breakglass.admin`."],
+        ["Les événements ne sont pas affichés dans l'ordre chronologique du journal — base-toi sur les horodatages, pas sur l'ordre d'affichage.",
+         "Classe les 4 événements du plus ancien au plus récent d'après leur heure exacte.",
+         "Chronologie correcte, du plus ancien au plus récent : `report --order a,b,c,d`"],
+        ["Une fois les trois éléments du rapport soumis et corrects, il ne reste plus qu'à clôturer le dossier.",
+         "Il existe une commande dédiée pour clôturer une investigation terminée.",
+         "Clôture le dossier avec `close-incident`."]
+      ],
+      completeSub:"Contournement de Conditional Access via un compte de secours détecté avant l'exfiltration.",
+      chainSteps:[
+        {icon:'📄', label:'Logs lus'}, {icon:'🔍', label:'Technique'},
+        {icon:'🧭', label:'Chronologie'}, {icon:'📝', label:'Rapport clos'}
+      ],
+      flag:'FLAG{blueteam_breakglass_conditional_access_detected}',
+      deepDive:{
+        why:"Rien ici ne relève d'une faille technique complexe : chaque événement, pris isolément, pourrait presque sembler anodin dans un grand tenant. C'est leur combinaison qui trahit l'attaque — une rafale d'échecs de connexion (signature de password spray), suivie d'un succès sans le moindre challenge MFA (parce que le compte est exclu des politiques Conditional Access), sur un compte qui détient en permanence le rôle Global Administrator sans jamais être réévalué, suivie presque immédiatement d'une action de persistance (ajout d'un identifiant à une application à privilèges). Le signal le plus fort n'est pas un événement unique mais l'absence anormale de toute friction (MFA, Conditional Access) là où elle devrait exister sur un compte aussi puissant.",
+        defenses:[
+          "Alerter immédiatement sur toute connexion réussie à un compte de secours (break-glass), quel que soit le moment — ce compte ne devrait presque jamais servir",
+          "Corréler systématiquement une rafale d'échecs de connexion suivie d'un succès (signature de password spray), en particulier sur les comptes exclus de Conditional Access",
+          "Réévaluer périodiquement la liste des comptes exclus de chaque politique Conditional Access et l'attribution permanente de rôles critiques (Global Administrator) hors PIM",
+          "Surveiller les modifications d'identifiants sur les principaux de service à privilèges élevés, en particulier juste après une connexion inhabituelle"
+        ],
+        quiz:[
+          { q:"Quel est le signal combiné le plus révélateur dans cet incident ?",
+            options:["Une connexion réussie sur un compte de secours, sans MFA, juste après une rafale d'échecs typique d'un password spray","Un simple changement de mot de passe planifié","Une mise à jour Windows appliquée automatiquement","Une déconnexion normale en fin de journée"],
+            correct:0,
+            explain:"Pris séparément, chaque signal pourrait sembler mineur ; c'est la combinaison — rafale d'échecs, succès sans MFA, compte à rôle permanent — qui révèle le contournement de Conditional Access." },
+          { q:"Pourquoi le Conditional Access ne s'est-il pas appliqué lors de la connexion réussie ?",
+            options:["Parce que le compte breakglass.admin est explicitement exclu des politiques concernées","Parce que Conditional Access ne s'applique jamais la nuit","Parce que l'adresse IP était française","Parce que le compte n'existe plus dans l'annuaire"],
+            correct:0,
+            explain:"Un compte de secours est volontairement exclu de ces politiques pour ne jamais bloquer un accès d'urgence — un choix légitime, mais qui devient dangereux s'il n'est jamais réévalué." },
+          { q:"Quelle mesure défensive s'attaque le plus directement à la cause racine de cet incident ?",
+            options:["Réévaluer périodiquement les exclusions Conditional Access et les rôles permanents hors PIM","Changer le thème visuel du portail Entra ID","Augmenter la taille des journaux stockés","Désactiver totalement les comptes de secours sans alternative"],
+            correct:0,
+            explain:"Un compte de secours oublié après sa création, avec un rôle permanent jamais réévalué, est la cause racine — une revue périodique de ces exclusions et attributions permet de la corriger sans perdre le filet de sécurité qu'il représente."}
+        ]
+      }
     }
   ],
 
