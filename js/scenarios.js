@@ -179,6 +179,7 @@ SCENARIOS.kerberoast = {
   },
 
   deepDive:{
+    mitre:[{id:'T1558.003', name:"Steal or Forge Kerberos Tickets: Kerberoasting"}],
     why:"Le protocole Kerberos autorise, par conception, tout utilisateur authentifié à demander un ticket de service pour n'importe quel compte possédant un SPN. Ce n'est pas une faille du protocole — c'est son fonctionnement normal. Le seul maillon faible est la robustesse du mot de passe qui chiffre ce ticket.",
     defenses:[
       "Utiliser des comptes de service gérés (gMSA) : mot de passe long, aléatoire, changé automatiquement par AD",
@@ -494,6 +495,7 @@ SCENARIOS.goldenticket = {
   },
 
   deepDive:{
+    mitre:[{id:'T1558.001', name:"Steal or Forge Kerberos Tickets: Golden Ticket"}, {id:'T1003.006', name:"OS Credential Dumping: DCSync"}, {id:'T1558.003', name:"Steal or Forge Kerberos Tickets: Kerberoasting"}, {id:'T1098', name:"Account Manipulation"}],
     why:"Le compte krbtgt signe cryptographiquement tous les tickets Kerberos du domaine. Sa clé change rarement en pratique, ce qui en fait la cible ultime : qui la possède peut forger une identité illimitée, indépendamment de tout mot de passe utilisateur.",
     defenses:[
       "Changer la clé krbtgt régulièrement — et deux fois de suite, car AD conserve les deux dernières générations",
@@ -845,6 +847,7 @@ SCENARIOS.acl = {
   },
 
   deepDive:{
+    mitre:[{id:'T1098', name:"Account Manipulation"}],
     why:"Les ACL Active Directory permettent une délégation très fine des droits — utile, mais dangereuse si elle n'est jamais auditée. Une permission accordée pour une tâche ponctuelle (dépannage, script d'automatisation, prestataire externe) reste active tant que personne ne la retire explicitement, parfois pendant des années.",
     defenses:[
       "Auditer régulièrement les ACL des comptes et groupes sensibles (BloodHound côté défense, ou équivalent)",
@@ -1088,6 +1091,7 @@ SCENARIOS.pth = {
   },
 
   deepDive:{
+    mitre:[{id:'T1550.002', name:"Use Alternate Authentication Material: Pass the Hash"}],
     why:"Certains protocoles d'authentification Windows (NTLM notamment) acceptent le hash lui-même comme preuve d'identité — pas besoin de le casser pour retrouver le mot de passe en clair. Si ce hash est valide sur plusieurs machines à cause d'un mot de passe admin local réutilisé, il ouvre toutes les portes équivalentes.",
     defenses:[
       "Déployer LAPS (Local Administrator Password Solution) : mot de passe admin local unique et changé automatiquement par machine",
@@ -1401,6 +1405,7 @@ SCENARIOS.libre = {
   },
 
   deepDive:{
+    mitre:[{id:'T1558.003', name:"Steal or Forge Kerberos Tickets: Kerberoasting"}, {id:'T1550.002', name:"Use Alternate Authentication Material: Pass the Hash"}, {id:'T1098', name:"Account Manipulation"}],
     why:"Un domaine Active Directory réel accumule des dizaines de chemins d'attaque potentiels : comptes de service oubliés, ACL déléguées puis jamais nettoyées, mots de passe locaux réutilisés. Bloquer un seul de ces chemins ne suffit presque jamais — un attaquant patient en trouve un autre.",
     defenses:[
       "Cartographier tous les chemins d'attaque vers les comptes à privilège (BloodHound côté défense), pas seulement les plus évidents",
@@ -1783,6 +1788,7 @@ SCENARIOS.azuread = {
   },
 
   deepDive:{
+    mitre:[{id:'T1552.001', name:"Unsecured Credentials: Credentials In Files"}, {id:'T1098.001', name:"Account Manipulation: Additional Cloud Credentials"}],
     why:"Le rôle Application Administrator est conçu pour administrer les applications du tenant, ce qui inclut la gestion de leurs identifiants (secrets, certificats). Rien n'empêche par conception d'ajouter un identifiant à une application qui dispose elle-même d'un rôle plus privilégié : le titulaire du rôle Application Administrator peut donc emprunter l'identité de n'importe quelle application moins protégée. Le vrai problème ici est l'attribution du rôle Global Administrator directement à un Service Principal d'automatisation, sans protection particulière.",
     defenses:[
       "Ne jamais attribuer un rôle d'annuaire très privilégié (Global Administrator) directement à un Service Principal ou un compte d'automatisation",
@@ -2013,6 +2019,7 @@ SCENARIOS.blueteam = {
       ],
       flag:'FLAG{blueteam_kerberoast_detected}',
       deepDive:{
+        mitre:[{id:'T1558.003', name:"Steal or Forge Kerberos Tickets: Kerberoasting"}],
         why:"Le Kerberoasting laisse des traces discrètes mais réelles : une demande de ticket de service (Event ID 4769) chiffrée en RC4 alors que le reste de l'environnement utilise AES est un signal fort, surtout suivie de près par une ouverture de session et un accès fichier inhabituels pour ce compte. Aucun de ces événements pris isolément ne prouve une attaque — c'est leur corrélation, dans le bon ordre, qui la révèle.",
         defenses:[
           "Alerter spécifiquement sur les tickets Kerberos chiffrés en RC4 (type 0x17) quand l'environnement est censé n'utiliser que l'AES",
@@ -2077,6 +2084,7 @@ SCENARIOS.blueteam = {
       ],
       flag:'FLAG{blueteam_adcs_esc1_detected}',
       deepDive:{
+        mitre:[{id:'T1649', name:"Steal or Forge Authentication Certificates"}],
         why:"Un abus de certificat AD CS laisse des traces précises mais rarement surveillées par défaut : une délivrance de certificat (Event ID 4887) dont le sujet ne correspond pas au demandeur d'origine (4886) est un signal quasi certain d'ESC1 — surtout suivie de près par une authentification par certificat (PKINIT) pour un compte à privilèges, depuis un poste qui n'est pas le sien.",
         defenses:[
           "Corréler les Event ID 4886/4887 : alerter quand l'identité demandée diffère du compte demandeur",
@@ -2140,6 +2148,7 @@ SCENARIOS.blueteam = {
       ],
       flag:'FLAG{blueteam_pth_detected}',
       deepDive:{
+        mitre:[{id:'T1550.002', name:"Use Alternate Authentication Material: Pass the Hash"}],
         why:"Le Pass-the-Hash laisse une absence caractéristique plutôt qu'un signal direct : une authentification NTLM réussie pour un compte à privilèges, sans le ticket Kerberos (4768) qui l'accompagnerait normalement, trahit un hash réutilisé tel quel plutôt qu'un mot de passe tapé au clavier.",
         defenses:[
           "Alerter sur les authentifications NTLM de comptes à privilèges quand Kerberos est censé être utilisé par défaut",
@@ -2203,6 +2212,7 @@ SCENARIOS.blueteam = {
       ],
       flag:'FLAG{blueteam_unconstrained_petitpotam_detected}',
       deepDive:{
+        mitre:[{id:'T1187', name:"Forced Authentication"}, {id:'T1550.003', name:"Use Alternate Authentication Material: Pass the Ticket"}],
         why:"Cette attaque ne laisse pas un seul signal évident, mais une série d'anomalies directionnelles : un compte machine de contrôleur de domaine qui s'authentifie SUR un serveur applicatif (le sens inverse du trafic normal), un accès EFSRPC vers ce même serveur juste avant (signature typique d'une coercition comme PetitPotam), et surtout une requête de réplication d'annuaire (Event ID 4662) dont l'adresse réseau source ne correspond à aucun contrôleur de domaine légitime. Prise isolément, chaque ligne pourrait presque passer inaperçue — c'est leur direction et leur origine réseau, croisées, qui trahissent l'attaque.",
         defenses:[
           "Surveiller toute session (Event ID 4624) où le compte est un compte machine de contrôleur de domaine (suffixe $) et où la machine destination n'est pas elle-même un DC",
@@ -2266,6 +2276,7 @@ SCENARIOS.blueteam = {
       ],
       flag:'FLAG{blueteam_breakglass_conditional_access_detected}',
       deepDive:{
+        mitre:[{id:'T1078.004', name:"Valid Accounts: Cloud Accounts"}, {id:'T1110.003', name:"Brute Force: Password Spraying"}],
         why:"Rien ici ne relève d'une faille technique complexe : chaque événement, pris isolément, pourrait presque sembler anodin dans un grand tenant. C'est leur combinaison qui trahit l'attaque — une rafale d'échecs de connexion (signature de password spray), suivie d'un succès sans le moindre challenge MFA (parce que le compte est exclu des politiques Conditional Access), sur un compte qui détient en permanence le rôle Global Administrator sans jamais être réévalué, suivie presque immédiatement d'une action de persistance (ajout d'un identifiant à une application à privilèges). Le signal le plus fort n'est pas un événement unique mais l'absence anormale de toute friction (MFA, Conditional Access) là où elle devrait exister sur un compte aussi puissant.",
         defenses:[
           "Alerter immédiatement sur toute connexion réussie à un compte de secours (break-glass), quel que soit le moment — ce compte ne devrait presque jamais servir",
@@ -2597,6 +2608,7 @@ SCENARIOS.adcs = {
   },
 
   deepDive:{
+    mitre:[{id:'T1649', name:"Steal or Forge Authentication Certificates"}],
     why:"AD CS est souvent déployé rapidement, avec les modèles fournis par défaut ou copiés d'un ancien modèle sans revoir les droits d'enrôlement ni les drapeaux hérités. Le drapeau ENROLLEE_SUPPLIES_SUBJECT, en particulier, est resté sur d'anciens modèles conçus avant que ce risque ne soit largement documenté (recherche publiée par SpecterOps en 2021, ESC1 à ESC8+).",
     defenses:[
       "Auditer tous les modèles de certificats publiés : qui peut s'enrôler, et quels drapeaux sont actifs (en particulier ENROLLEE_SUPPLIES_SUBJECT)",
@@ -2849,6 +2861,7 @@ SCENARIOS.shadowcred = {
   },
 
   deepDive:{
+    mitre:[{id:'T1098', name:"Account Manipulation"}],
     why:"L'attribut msDS-KeyCredentialLink stocke les clés utilisées pour l'authentification sans mot de passe (Windows Hello for Business, FIDO2). Un droit d'écriture sur ce seul attribut — souvent accordé largement pendant un déploiement, puis jamais retiré — permet à quiconque le possède d'y ajouter sa propre clé, et de s'authentifier comme le compte cible via PKINIT. C'est un droit étroit, donc facile à accorder sans réfléchir, et facile à oublier dans un audit qui ne cherche que les GenericAll évidents.",
     defenses:[
       "Auditer spécifiquement les droits d'écriture sur msDS-KeyCredentialLink, pas seulement les droits larges comme GenericAll",
@@ -3136,6 +3149,7 @@ SCENARIOS.dcsync = {
   },
 
   deepDive:{
+    mitre:[{id:'T1003.006', name:"OS Credential Dumping: DCSync"}],
     why:"La réplication d'annuaire est un mécanisme légitime et essentiel d'Active Directory : les contrôleurs se synchronisent en s'échangeant tout le contenu de la base, secrets compris. Les droits DS-Replication-Get-Changes et -Get-Changes-All autorisent cet échange. Le problème n'est pas le mécanisme, mais sa délégation : accordés à un compte qui n'est pas un contrôleur de domaine — typiquement le compte de synchronisation Azure AD Connect, ou un compte à qui on a donné ces droits « juste pour un outil » — ils permettent de répliquer le hash de n'importe quel compte sans jamais être administrateur, sans toucher aux comptes visés, et sans rien casser hors-ligne. C'est le chemin par lequel on obtient en pratique le hash de krbtgt qui rend un Golden Ticket possible.",
     defenses:[
       "Auditer précisément qui détient DS-Replication-Get-Changes et -Get-Changes-All sur le domaine — la liste doit se limiter aux contrôleurs de domaine et aux comptes strictement nécessaires",
@@ -3431,6 +3445,7 @@ SCENARIOS.unconstrained = {
   },
 
   deepDive:{
+    mitre:[{id:'T1187', name:"Forced Authentication"}, {id:'T1550.003', name:"Use Alternate Authentication Material: Pass the Ticket"}],
     why:"La délégation sans contrainte est un réglage légitime pour les contrôleurs de domaine, mais dangereux dès qu'il se retrouve sur un serveur applicatif ordinaire : n'importe quel compte qui s'y authentifie y laisse une copie complète et réutilisable de son ticket. Combinée à la coercition (forcer une authentification, par exemple via PetitPotam et le protocole MS-EFSRPC), cette configuration permet de capturer le ticket d'un contrôleur de domaine sans jamais avoir de droit sur le domaine au départ — un simple accès administrateur local sur le mauvais serveur suffit. Une fois ce ticket rejoué, l'attaquant EST littéralement un contrôleur de domaine aux yeux de l'annuaire, avec tous les droits de réplication qui vont avec.",
     defenses:[
       "Ne jamais activer la délégation sans contrainte sur autre chose qu'un contrôleur de domaine — utiliser la délégation contrainte (ou contrainte avec authentification protégée par ressource) partout ailleurs",
@@ -3689,6 +3704,7 @@ SCENARIOS.breakglass = {
   },
 
   deepDive:{
+    mitre:[{id:'T1078.004', name:"Valid Accounts: Cloud Accounts"}, {id:'T1110.003', name:"Brute Force: Password Spraying"}],
     why:"Un compte de secours (break-glass) exclu des politiques Conditional Access est une pratique recommandée pour éviter un verrouillage total du tenant. Le risque n'est pas l'exclusion elle-même, mais son oubli : un compte jamais utilisé, jamais réévalué, garde un mot de passe défini à sa création et ne bénéficie d'aucune des protections (MFA, appareil conforme) qui s'appliquent à tous les autres comptes à privilèges. Un simple password spray suffit alors à le compromettre, sans déclencher le moindre challenge — la politique de sécurité la plus stricte du tenant ne s'applique tout simplement pas à lui.",
     defenses:[
       "Limiter à deux comptes de secours au maximum, avec des mots de passe longs, aléatoires et générés à la création — jamais mémorisables",
@@ -3963,6 +3979,7 @@ SCENARIOS.hybridbridge = {
   },
 
   deepDive:{
+    mitre:[{id:'T1552.001', name:"Unsecured Credentials: Credentials In Files"}, {id:'T1003.006', name:"OS Credential Dumping: DCSync"}, {id:'T1078.004', name:"Valid Accounts: Cloud Accounts"}],
     why:"Azure AD Connect existe pour faire le pont entre un annuaire on-prem et un tenant cloud — ce qui signifie qu'il détient, sur un seul serveur, des identifiants capables d'agir des deux côtés. Ces identifiants sont chiffrés, mais avec les clés DPAPI de la machine elle-même : n'importe quel administrateur local de ce serveur peut donc les déchiffrer, exactement comme le service le fait pour fonctionner. Résultat, un unique serveur compromis peut livrer à la fois les droits de réplication on-prem (menant à krbtgt et à un Golden Ticket) et un compte cloud à privilèges élevés dans Entra ID — parfois jusqu'au Global Administrator, quand ce connecteur n'a pas été correctement restreint au rôle minimal nécessaire (Directory Synchronization Accounts).",
     defenses:[
       "Traiter tout serveur Azure AD Connect comme un actif Tier 0, au même titre qu'un contrôleur de domaine : accès restreint, durci, surveillé en continu",

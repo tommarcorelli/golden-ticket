@@ -663,6 +663,19 @@ function showExplain(){
   document.getElementById('explain-tag').textContent = `🛡️ ANALYSE · ${sc.tag.split('·')[1] ? sc.tag.split('·')[1].trim() : sc.tag}`;
   document.getElementById('explain-title').textContent = 'Pourquoi ça marche';
   document.getElementById('explain-why').textContent = sc.deepDive.why;
+  const mitreHost = document.getElementById('explain-mitre');
+  if(mitreHost){
+    const mitre = sc.deepDive.mitre;
+    if(mitre && mitre.length){
+      mitreHost.style.display = '';
+      mitreHost.innerHTML = mitre.map(m =>
+        `<a class="mitre-chip" href="https://attack.mitre.org/techniques/${m.id.replace('.', '/')}/" target="_blank" rel="noopener" title="${m.name}"><span class="mitre-id">${m.id}</span> ${m.name}</a>`
+      ).join('');
+    } else {
+      mitreHost.style.display = 'none';
+      mitreHost.innerHTML = '';
+    }
+  }
   document.getElementById('explain-defenses').innerHTML = sc.deepDive.defenses.map(d => `<li>${d}</li>`).join('');
   renderQuiz(sc);
   showView('view-explain');

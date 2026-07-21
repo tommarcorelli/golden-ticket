@@ -450,6 +450,22 @@ input:focus-visible,
 .gloss-card p b{color:var(--text);}
 
 /* ---------- deep dive / explain view ---------- */
+.mitre-badges{
+  display:flex;flex-wrap:wrap;gap:7px;justify-content:center;
+  margin:2px 0 18px;
+}
+.mitre-chip{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:11.5px;color:var(--text-md);text-decoration:none;
+  padding:6px 11px;border-radius:20px;
+  background:var(--glass);border:1px solid var(--glass-border);
+  transition:border-color .15s ease, color .15s ease;
+}
+.mitre-chip:hover{border-color:var(--gold-li);color:var(--text);}
+.mitre-chip .mitre-id{
+  font-family:var(--font-mono);font-weight:700;color:var(--gold-li);
+  letter-spacing:0.3px;
+}
 .defense-heading{
   font-family:var(--font-display);font-weight:700;font-size:15px;
   color:var(--gold-li);margin:22px 0 12px;
