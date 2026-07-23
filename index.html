@@ -126,6 +126,12 @@ Ticket obtenu. Prêt à cracker.</div>
       <p>Un compte de secours exclu de toutes les politiques Conditional Access, mot de passe jamais changé depuis 2019. Repère l'exclusion, retrouve le mot de passe, deviens Global Admin sans jamais passer le MFA.</p>
       <button class="mode-play" onclick="goToLesson('breakglass')">▶ Lancer</button>
     </div>
+    <div class="mode-card active-mode" id="mode-card-gpo">
+      <span class="done-badge" id="badge-gpo" style="display:none;">✓ Terminé</span>
+      <h4>🧩 Scénario 10 — Abus de GPO</h4>
+      <p>Une délégation GPO légitime sur une GPO d'imprimantes, recopiée par erreur sur une GPO de serveurs applicatifs. Pousse un admin local via Restricted Groups et récupère les identifiants d'un Domain Admin de passage.</p>
+      <button class="mode-play" onclick="goToLesson('gpo')">▶ Lancer</button>
+    </div>
   </div>
 
   <div class="epic-banner-wrap libre-wrap">
@@ -305,6 +311,14 @@ Ticket obtenu. Prêt à cracker.</div>
       <li class="gloss-card">
         <h4>Azure AD Connect (pont hybride)</h4>
         <p>Serveur qui synchronise un annuaire on-prem avec un tenant cloud Entra ID. Il détient les identifiants de <b>deux connecteurs</b> (on-prem et cloud), chiffrés localement avec les clés DPAPI de la machine — ce qui en fait un actif Tier 0 : le compromettre peut livrer les deux royaumes à la fois.</p>
+      </li>
+      <li class="gloss-card">
+        <h4>GPO (Group Policy Object)</h4>
+        <p>Objet qui regroupe des réglages — sécurité, tâches planifiées, appartenance à des groupes locaux — appliqués automatiquement à toutes les machines d'une <b>OU</b> à laquelle il est lié. Un droit d'édition sur une seule GPO peut donc affecter des dizaines de machines d'un coup.</p>
+      </li>
+      <li class="gloss-card">
+        <h4>Restricted Groups</h4>
+        <p>Réglage de GPO qui impose l'appartenance à un groupe local (souvent Administrateurs) sur toutes les machines d'une OU. Détourné, il permet à quiconque a un droit d'édition sur la GPO de se rendre administrateur local d'un parc entier de machines.</p>
       </li>
     </ul>
   </div>

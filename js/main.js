@@ -201,7 +201,7 @@ const achievements = savedProgress.achievements;
 const librePaths = savedProgress.librePaths;
 const blueteamCases = savedProgress.blueteamCases;
 const quizPassed = savedProgress.quizPassed;
-const QUIZ_SCENARIOS = ['kerberoast','pth','acl','azuread','adcs','shadowcred','dcsync','unconstrained','breakglass','goldenticket','hybridbridge'];
+const QUIZ_SCENARIOS = ['kerberoast','pth','acl','azuread','adcs','shadowcred','dcsync','unconstrained','breakglass','gpo','goldenticket','hybridbridge'];
 
 function markScenarioComplete(scenarioId){
   completedScenarios[scenarioId] = true;
