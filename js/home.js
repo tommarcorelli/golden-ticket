@@ -155,7 +155,7 @@ function renderLeaderboardBody(){
         const cmdsStr = (typeof r.cmds === 'number') ? ` · ${r.cmds} cmd` : '';
         return `<div class="lb-row">
           <span class="lb-rank">${medals[i] || (i+1) + '.'}</span>
-          <span class="lb-time">${r.time}s${cmdsStr}</span>
+          <span class="lb-time">${r.time}s${cmdsStr}</span>`
           <span class="lb-date">${dateStr}</span>
         </div>`;
       }).join('');

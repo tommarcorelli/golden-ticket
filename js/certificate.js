@@ -7,7 +7,7 @@ function downloadCertificate(){
   const timeText = document.getElementById('mc-time').textContent;
   const cmdsText = document.getElementById('mc-cmds').textContent;
   const hintsText = document.getElementById('mc-hints').textContent;
-  const modeParts = [];
+const modeParts = [];
   if(state.expertMode) modeParts.push('🎓 Mode Expert');
   if(state.budgetMode && SCENARIOS[state.scenarioId].cmdBudget) modeParts.push('🎯 Mode Budget');
   const modeText = modeParts.length ? modeParts.join(' + ') : 'Mode Normal';
