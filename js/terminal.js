@@ -133,6 +133,10 @@ function bootTerminal(scenarioId, opts){
   state.hintLevel = {};
   state.extra = sc.initState ? sc.initState() : {};
   state.expertMode = (typeof expertMode !== 'undefined') ? expertMode : false;
+  state.budgetMode = (typeof budgetMode !== 'undefined') ? budgetMode : false;
+  state.cmdBudget = sc.cmdBudget || null;
+  state.cmdRemaining = state.cmdBudget;
+  state.missionFailed = false;
   state.opsec = { level:0, detected:false };
   cmdHistory = [];
   historyIndex = -1;
@@ -176,6 +180,16 @@ function bootTerminal(scenarioId, opts){
   const timerEl = document.getElementById('mission-timer');
   if(timerEl) timerEl.style.display = state.expertMode ? 'inline-block' : 'none';
   if(state.expertMode) startMissionTimer();
+  const budgetEl = document.getElementById('budget-counter');
+  if(budgetEl){
+    if(state.budgetMode && state.cmdBudget){
+      budgetEl.style.display = 'inline-block';
+      budgetEl.classList.remove('warn','danger');
+      budgetEl.textContent = `🎯 ${state.cmdRemaining}/${state.cmdBudget}`;
+    } else {
+      budgetEl.style.display = 'none';
+    }
+  }
   const opsecCard = document.getElementById('opsec-card');
   if(opsecCard) opsecCard.style.display = sc.opsecEnabled ? 'block' : 'none';
   renderOpsecGauge();
@@ -183,6 +197,9 @@ function bootTerminal(scenarioId, opts){
   renderObjectives();
   updatePrompt();
   sc.introLines.forEach(line => print(line));
+  if(state.budgetMode && !state.cmdBudget && !playbackActive){
+    print(`<span class="out-dim">ℹ️ Le Mode Budget ne s'applique pas à cette mission (pas de limite de commandes ici).</span>`);
+  }
   print('');
   document.getElementById('cmd-input').focus();
 }
@@ -204,7 +221,35 @@ function stopMissionTimer(){
   if(missionTimerInterval){ clearInterval(missionTimerInterval); missionTimerInterval = null; }
 }
 
+function renderBudgetCounter(){
+  const el = document.getElementById('budget-counter');
+  if(!el || !state.budgetMode || !state.cmdBudget) return;
+  const remaining = Math.max(0, state.cmdRemaining);
+  el.textContent = `🎯 ${remaining}/${state.cmdBudget}`;
+  el.classList.toggle('danger', remaining <= 1);
+  el.classList.toggle('warn', remaining > 1 && remaining / state.cmdBudget <= 0.34);
+}
+
+function checkBudgetExhausted(){
+  if(state.missionFailed || !state.budgetMode || !state.cmdBudget) return;
+  if(state.cmdRemaining > 0) return;
+  const sc = currentScenario();
+  if(sc.objectives.every(o => state.objDone[o.id])) return; // gagnée sur la dernière commande — pas un échec
+  failMission();
+}
+
+function failMission(){
+  if(state.missionFailed) return;
+  state.missionFailed = true;
+  stopMissionTimer();
+  print(`<span class="out-bad">🎯 Budget de commandes épuisé (${state.cmdBudget}/${state.cmdBudget}) — mission échouée. Relance avec ↺ Recommencer, en réfléchissant à chaque commande avant de la taper.</span>`);
+  const input = document.getElementById('cmd-input');
+  if(input) input.disabled = true;
+  vibrate([60, 40, 60, 40, 120]);
+}
+
 function handle(raw){
+  if(state.missionFailed) return;
   const cmd = raw.trim();
   if(cmd === '') return;
   printCmd(cmd);
@@ -212,6 +257,14 @@ function handle(raw){
   historyIndex = cmdHistory.length;
   cmdCount++;
   if(!playbackActive) replayLog.push({ cmd, t: Date.now() - missionStart });
+  if(state.budgetMode && state.cmdBudget){
+    state.cmdRemaining--;
+    renderBudgetCounter();
+    // Différé après la fin de l'appel courant (donc après un éventuel finishMission()
+    // déclenché en cascade par sc.handle() plus bas) pour ne pas faire échouer une
+    // mission gagnée sur sa toute dernière commande autorisée.
+    setTimeout(checkBudgetExhausted, 0);
+  }
   const lower = cmd.toLowerCase();
   const sc = currentScenario();
 
@@ -341,14 +394,16 @@ function finishMission(){
   if(typeof markScenarioComplete === 'function') markScenarioComplete(state.scenarioId);
   playVictorySound();
   const elapsed = Math.max(1, Math.round((Date.now() - missionStart) / 1000));
-  if(typeof recordBestTime === 'function') recordBestTime(state.scenarioId, elapsed, state.expertMode);
+  const isBudgetRun = !!(state.budgetMode && sc.cmdBudget);
+  if(typeof recordBestTime === 'function') recordBestTime(state.scenarioId, elapsed, state.expertMode, isBudgetRun, cmdCount);
   let newAchievements = [];
   if(typeof unlockAchievements === 'function'){
     newAchievements = unlockAchievements({
       scenarioId: state.scenarioId, elapsed, hintsUsed, manCount,
       pathTaken: state.extra ? state.extra.pathTaken : null,
       blueteamCaseId: state.scenarioId === 'blueteam' ? sc.currentCaseId : null,
-      opsecEnabled: !!sc.opsecEnabled, detected: !!(state.opsec && state.opsec.detected)
+      opsecEnabled: !!sc.opsecEnabled, detected: !!(state.opsec && state.opsec.detected),
+      budgetRun: isBudgetRun
     });
   }
   if(sc.epic){
@@ -481,98 +536,6 @@ function shareMissionResult(btn){
   }).catch(()=>{});
 }
 
-function playBuzzSound(){
-  if(typeof soundFxEnabled !== 'undefined' && !soundFxEnabled) return;
-  try{
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'square';
-    const start = ctx.currentTime;
-    osc.frequency.setValueAtTime(120, start);
-    osc.frequency.exponentialRampToValueAtTime(75, start + 0.14);
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(0.045, start + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(start);
-    osc.stop(start + 0.16);
-  }catch(e){ /* audio non disponible, tant pis */ }
-}
-
-function playEpicFanfare(){
-  if(typeof soundFxEnabled !== 'undefined' && !soundFxEnabled) return;
-  try{
-    const ctx2 = new (window.AudioContext || window.webkitAudioContext)();
-    // un accord grave qui monte, puis l'arpège triomphal
-    const bass = [130.81, 164.81, 196.00]; // C3 E3 G3
-    bass.forEach((freq,i)=>{
-      const osc = ctx2.createOscillator();
-      const gain = ctx2.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.value = freq;
-      const start = ctx2.currentTime;
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.05, start + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.9);
-      osc.connect(gain).connect(ctx2.destination);
-      osc.start(start); osc.stop(start + 0.9);
-    });
-    const arp = [523.25, 659.25, 783.99, 1046.5, 1318.5]; // C5 E5 G5 C6 E6
-    arp.forEach((freq,i)=>{
-      const osc = ctx2.createOscillator();
-      const gain = ctx2.createGain();
-      osc.type = 'triangle';
-      osc.frequency.value = freq;
-      const start = ctx2.currentTime + 0.15 + i * 0.11;
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.14, start + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.35);
-      osc.connect(gain).connect(ctx2.destination);
-      osc.start(start); osc.stop(start + 0.35);
-    });
-  }catch(e){ /* audio non disponible, tant pis */ }
-}
-
-function playVictorySound(){
-  if(typeof soundFxEnabled !== 'undefined' && !soundFxEnabled) return;
-  try{
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const notes = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6
-    notes.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.value = freq;
-      const start = ctx.currentTime + i * 0.09;
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.12, start + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.28);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(start);
-      osc.stop(start + 0.3);
-    });
-  }catch(e){ /* audio non disponible, tant pis */ }
-}
-
-function playDingSound(){
-  if(typeof soundFxEnabled !== 'undefined' && !soundFxEnabled) return;
-  try{
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'triangle';
-    const start = ctx.currentTime;
-    osc.frequency.setValueAtTime(880, start);
-    osc.frequency.exponentialRampToValueAtTime(1318.5, start + 0.09);
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(0.08, start + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.22);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(start);
-    osc.stop(start + 0.22);
-  }catch(e){ /* audio non disponible, tant pis */ }
-}
 
 function initTerminalInput(){
   const input = document.getElementById('cmd-input');
@@ -662,4 +625,3 @@ function skipReplayToEnd(){
   replayCurrentIndex = 0;
   if(input){ input.value = ''; input.disabled = false; }
 }
-
