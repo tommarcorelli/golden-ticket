@@ -467,9 +467,33 @@ Ticket obtenu. Prêt à cracker.</div>
 </main>
 
 <script src="js/graph.js"></script>
-<script src="js/scenarios.js"></script>
+<!-- js/scenarios/ : _core.js (SCENARIOS, NOISE, noiseRule) doit se charger avant tous les scénarios ci-dessous.
+     Les fichiers de scénario n'ont aucune dépendance entre eux : l'ordre parmi eux n'a pas d'importance. -->
+<script src="js/scenarios/_core.js"></script>
+<script src="js/scenarios/kerberoast.js"></script>
+<script src="js/scenarios/goldenticket.js"></script>
+<script src="js/scenarios/acl.js"></script>
+<script src="js/scenarios/pth.js"></script>
+<script src="js/scenarios/libre.js"></script>
+<script src="js/scenarios/azuread.js"></script>
+<script src="js/scenarios/blueteam.js"></script>
+<script src="js/scenarios/adcs.js"></script>
+<script src="js/scenarios/shadowcred.js"></script>
+<script src="js/scenarios/dcsync.js"></script>
+<script src="js/scenarios/unconstrained.js"></script>
+<script src="js/scenarios/breakglass.js"></script>
+<script src="js/scenarios/hybridbridge.js"></script>
+<script src="js/scenarios/gpo.js"></script>
 <script src="js/domaingen.js"></script>
+<script src="js/audio.js"></script>
 <script src="js/terminal.js"></script>
+<!-- js/main.js a été découpé par responsabilité : progress.js (sauvegarde + succès),
+     home.js (accueil/leçon/classement/replay), certificate.js (certificat de fin), quiz.js
+     (quiz de défense), main.js (init de l'app, thème/son/mode expert, easter eggs). -->
+<script src="js/progress.js"></script>
+<script src="js/home.js"></script>
+<script src="js/certificate.js"></script>
+<script src="js/quiz.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>
