@@ -55,6 +55,11 @@
       <span class="expert-label">🎓 Mode Expert <span class="expert-desc">— indices désactivés, chrono visible, classement à part</span></span>
     </button>
 
+    <button class="expert-toggle" id="budget-toggle" onclick="toggleBudgetMode()" role="switch" aria-checked="false">
+      <span class="expert-switch" id="budget-switch" aria-hidden="true"></span>
+      <span class="expert-label">🎯 Mode Budget <span class="expert-desc">— nombre de commandes limité par mission, classement à part</span></span>
+    </button>
+
     <div class="hero-panel">
 <span class="l1">C:\&gt; whoami /priv</span>
 Utilisateur : CORP\j.dupont
@@ -336,6 +341,7 @@ Ticket obtenu. Prêt à cracker.</div>
     <div class="lb-tabs" id="lb-tabs">
       <button class="lb-tab active" onclick="setLeaderboardMode('normal')">Normal</button>
       <button class="lb-tab" onclick="setLeaderboardMode('expert')">🎓 Expert</button>
+      <button class="lb-tab" onclick="setLeaderboardMode('budget')">🎯 Budget</button>
     </div>
     <div id="leaderboard-body" class="lb-grid"></div>
   </div>
@@ -367,6 +373,7 @@ Ticket obtenu. Prêt à cracker.</div>
       <div class="scenario-tag" id="game-tag">🎫 SCÉNARIO 01 · KERBEROASTING</div>
       <span id="replay-badge" class="replay-badge" style="display:none;">📼 Lecture d'un replay…</span>
       <div id="mission-timer" class="mission-timer" style="display:none;">⏱ 0:00</div>
+      <div id="budget-counter" class="mission-timer budget-counter" style="display:none;">🎯 0/0</div>
       <button class="back-link" id="replay-skip-btn" style="display:none;" onclick="skipReplayToEnd()">⏭ Passer à la fin</button>
       <button class="back-link" id="restart-btn" onclick="bootTerminal()">↺ Recommencer</button>
     </div>
@@ -434,6 +441,7 @@ Ticket obtenu. Prêt à cracker.</div>
           <button class="back-link" onclick="closeMissionComplete(); showLeaderboard();">🏆 Classement</button>
           <button class="back-link" onclick="closeMissionComplete(); showExplain();">🛡️ En savoir plus</button>
           <button class="back-link" id="mc-cert-btn" style="display:none;" onclick="downloadCertificate()">🎓 Télécharger le certificat</button>
+          <button class="back-link" id="mc-mitigation-btn" style="display:none;" onclick="closeMissionComplete(); bootTerminal(state.scenarioId, {mitigation:true});">🛡️ Tester la contre-mesure</button>
           <button class="back-link" onclick="shareMissionResult(this)">📤 Partager mon temps</button>
           <button class="back-link" onclick="downloadReplay()">📼 Exporter le replay</button>
           <button class="cta cta-sm" onclick="closeMissionComplete(); bootTerminal();">↺ Recommencer</button>
@@ -467,9 +475,33 @@ Ticket obtenu. Prêt à cracker.</div>
 </main>
 
 <script src="js/graph.js"></script>
-<script src="js/scenarios.js"></script>
+<!-- js/scenarios/ : _core.js (SCENARIOS, NOISE, noiseRule) doit se charger avant tous les scénarios ci-dessous.
+     Les fichiers de scénario n'ont aucune dépendance entre eux : l'ordre parmi eux n'a pas d'importance. -->
+<script src="js/scenarios/_core.js"></script>
+<script src="js/scenarios/kerberoast.js"></script>
+<script src="js/scenarios/goldenticket.js"></script>
+<script src="js/scenarios/acl.js"></script>
+<script src="js/scenarios/pth.js"></script>
+<script src="js/scenarios/libre.js"></script>
+<script src="js/scenarios/azuread.js"></script>
+<script src="js/scenarios/blueteam.js"></script>
+<script src="js/scenarios/adcs.js"></script>
+<script src="js/scenarios/shadowcred.js"></script>
+<script src="js/scenarios/dcsync.js"></script>
+<script src="js/scenarios/unconstrained.js"></script>
+<script src="js/scenarios/breakglass.js"></script>
+<script src="js/scenarios/hybridbridge.js"></script>
+<script src="js/scenarios/gpo.js"></script>
 <script src="js/domaingen.js"></script>
+<script src="js/audio.js"></script>
 <script src="js/terminal.js"></script>
+<!-- js/main.js a été découpé par responsabilité : progress.js (sauvegarde + succès),
+     home.js (accueil/leçon/classement/replay), certificate.js (certificat de fin), quiz.js
+     (quiz de défense), main.js (init de l'app, thème/son/mode expert, easter eggs). -->
+<script src="js/progress.js"></script>
+<script src="js/home.js"></script>
+<script src="js/certificate.js"></script>
+<script src="js/quiz.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>
