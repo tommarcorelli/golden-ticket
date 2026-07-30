@@ -254,6 +254,8 @@ SCENARIOS.dcsync = {
         }
         return true;
       }
+        return true;
+      }
       const h = sc.hashes[target];
       if(!h){ print(`<span class="out-bad">Compte introuvable dans l'annuaire : ${escapeHtml(target)}</span>`); return true; }
       print(`<span class="out-info">Réplication d'annuaire demandée au contrôleur pour ${target}...</span>`);

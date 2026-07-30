@@ -751,7 +751,7 @@ input:focus-visible,
 
 /* ---------- toggle mode expert ---------- */
 .expert-toggle{
-  margin-top:18px;display:flex;width:fit-content;max-width:100%;align-items:center;gap:10px;
+  margin-top:18px;display:inline-flex;width:fit-content;max-width:100%;align-items:center;gap:10px;
   background:var(--glass);border:1px solid var(--glass-border);border-radius:999px;
   padding:8px 16px 8px 8px;cursor:pointer;transition:border-color .15s ease;
 }

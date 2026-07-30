@@ -175,6 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTerminalInput();
   updateHomeBadges();
   renderExpertToggle();
+  applyTheme();
   renderBudgetToggle();
   applySoundToggle();
   initLogoEasterEgg();
