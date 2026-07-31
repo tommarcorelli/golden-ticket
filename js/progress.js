@@ -13,7 +13,8 @@ function loadProgress(){
       achievements: parsed.achievements || {},
       librePaths: parsed.librePaths || {},
       blueteamCases: parsed.blueteamCases || {},
-      quizPassed: parsed.quizPassed || {}
+      quizPassed: parsed.quizPassed || {},
+      mitigationsTested: parsed.mitigationsTested || {}
     };
   }catch(e){
     return { completed:{}, bestTimes:{}, runHistory:{}, achievements:{}, librePaths:{}, blueteamCases:{}, quizPassed:{} };
@@ -24,7 +25,7 @@ function saveProgress(){
     localStorage.setItem(PROGRESS_KEY, JSON.stringify({
       completed: completedScenarios, bestTimes: bestTimes, runHistory: runHistory,
       achievements: achievements, librePaths: librePaths, blueteamCases: blueteamCases,
-      quizPassed: quizPassed
+      quizPassed: quizPassed, mitigationsTested: mitigationsTested
     }));
   }catch(e){ /* stockage indisponible (navigation privée...), tant pis */ }
 }
@@ -49,7 +50,8 @@ const achievements = savedProgress.achievements;
 const librePaths = savedProgress.librePaths;
 const blueteamCases = savedProgress.blueteamCases;
 const quizPassed = pruneOrphanIds(savedProgress.quizPassed);
-const QUIZ_SCENARIOS = ['kerberoast','pth','acl','azuread','adcs','shadowcred','dcsync','unconstrained','breakglass','gpo','goldenticket','hybridbridge'];
+const mitigationsTested = savedProgress.mitigationsTested || {};
+const QUIZ_SCENARIOS = ['kerberoast','pth','acl','azuread','adcs','shadowcred','dcsync','unconstrained','breakglass','gpo','goldenticket','hybridbridge','asrep'];
 
 function markScenarioComplete(scenarioId){
   completedScenarios[scenarioId] = true;
@@ -80,6 +82,7 @@ function resetProgress(){
   Object.keys(librePaths).forEach(k => delete librePaths[k]);
   Object.keys(blueteamCases).forEach(k => delete blueteamCases[k]);
   Object.keys(quizPassed).forEach(k => delete quizPassed[k]);
+  Object.keys(mitigationsTested).forEach(k => delete mitigationsTested[k]);
   saveProgress();
   updateHomeBadges();
 }
@@ -97,7 +100,8 @@ const ACHIEVEMENTS = [
   { id:'blueteam_detective', icon:'🕵️', title:'Détective complet', desc:"Résoudre les 5 dossiers d'incident différents du Mode Blue Team" },
   { id:'quiz_master', icon:'📚', title:'Théoricien', desc:"Réussir sans faute le quiz de défense de tous les scénarios techniques" },
   { id:'budget_survivor', icon:'🎯', title:'Sous contrainte', desc:"Terminer une mission en Mode Budget, sans dépasser le nombre de commandes autorisé" },
-  { id:'defense_tester', icon:'🛡️', title:'Œil du défenseur', desc:"Tester une contre-mesure après avoir résolu un scénario, pour voir la défense à l'œuvre" },
+  { id:'defense_tester',  icon:'🛡️', title:'Œil du défenseur',   desc:"Tester une contre-mesure après avoir résolu un scénario, pour voir la défense à l'œuvre" },
+  { id:'full_defender',   icon:'🏰', title:'Forteresse',          desc:"Tester les contre-mesures des 13 scénarios d'attaque — voir chaque défense bloquer l'attaque correspondante" },
 ];
 
 function recordQuizPass(scenarioId){
@@ -148,15 +152,30 @@ function unlockAchievements({ scenarioId, elapsed, hintsUsed, manCount, pathTake
   return newlyUnlocked;
 }
 
-// Débloqué à part (pas via unlockAchievements) : se déclenche au lancement d'une mission
-// en mode "contre-mesure", pas à la fin d'une mission — pas de toast dans l'écran de victoire,
-// juste enregistré silencieusement, visible ensuite dans la grille de succès.
-function unlockDefenseTester(){
-  if(achievements['defense_tester']) return;
-  achievements['defense_tester'] = { date: new Date().toISOString() };
+// Scénarios d'attaque qui ont une contre-mesure testable (tous sauf blueteam).
+const CM_SCENARIOS = ['kerberoast','pth','acl','azuread','adcs','shadowcred','dcsync',
+                      'unconstrained','breakglass','gpo','goldenticket','hybridbridge','libre','asrep'];
+
+// Enregistre qu'une contre-mesure a été testée pour ce scénario précis.
+// Débloque 'defense_tester' (premier test, global) et 'full_defender' (tous les scénarios).
+// Appelé depuis terminal.js au boot en mode mitigation.
+function recordMitigationTested(scenarioId){
+  mitigationsTested[scenarioId] = true;
+
+  if(!achievements['defense_tester']){
+    achievements['defense_tester'] = { date: new Date().toISOString() };
+  }
+
+  if(!achievements['full_defender'] && CM_SCENARIOS.every(id => mitigationsTested[id])){
+    achievements['full_defender'] = { date: new Date().toISOString() };
+  }
+
   saveProgress();
   updateHomeBadges();
 }
+
+// Kept for backward-compat in case any older call site still references it.
+function unlockDefenseTester(){ recordMitigationTested(''); }
 
 function renderAchievementsGrid(){
   const host = document.getElementById('achievements-grid');

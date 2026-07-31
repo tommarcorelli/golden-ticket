@@ -137,6 +137,12 @@ Ticket obtenu. Prêt à cracker.</div>
       <p>Une délégation GPO légitime sur une GPO d'imprimantes, recopiée par erreur sur une GPO de serveurs applicatifs. Pousse un admin local via Restricted Groups et récupère les identifiants d'un Domain Admin de passage.</p>
       <button class="mode-play" onclick="goToLesson('gpo')">▶ Lancer</button>
     </div>
+    <div class="mode-card active-mode" id="mode-card-asrep">
+      <span class="done-badge" id="badge-asrep" style="display:none;">✓ Terminé</span>
+      <h4>⚡ Scénario 11 — AS-REP Roasting</h4>
+      <p>Un compte de service legacy avec la pré-authentification Kerberos désactivée. Pas besoin de credentials : extrais son TGT directement, cracke le mot de passe, puis suis la chaîne ACL jusqu'au Domain Admin.</p>
+      <button class="mode-play" onclick="goToLesson('asrep')">▶ Lancer</button>
+    </div>
   </div>
 
   <div class="epic-banner-wrap libre-wrap">
@@ -492,6 +498,7 @@ Ticket obtenu. Prêt à cracker.</div>
 <script src="js/scenarios/breakglass.js"></script>
 <script src="js/scenarios/hybridbridge.js"></script>
 <script src="js/scenarios/gpo.js"></script>
+<script src="js/scenarios/asrep.js"></script>
 <script src="js/domaingen.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/terminal.js"></script>

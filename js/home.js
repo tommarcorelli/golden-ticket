@@ -4,8 +4,9 @@ function updateHomeBadges(){
     const badge = document.getElementById('badge-' + id);
     if(badge){
       if(completedScenarios[id]){
+        const shield = (typeof mitigationsTested !== 'undefined' && mitigationsTested[id]) ? ' 🛡️' : '';
         badge.style.display = 'inline-block';
-        badge.textContent = bestTimes[id] ? `✓ Terminé · ${bestTimes[id]}s` : '✓ Terminé';
+        badge.textContent = bestTimes[id] ? `✓ Terminé · ${bestTimes[id]}s${shield}` : `✓ Terminé${shield}`;
       } else {
         badge.style.display = 'none';
       }

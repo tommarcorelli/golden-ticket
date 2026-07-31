@@ -205,7 +205,7 @@ function bootTerminal(scenarioId, opts){
     if(sc.counterMeasure){
       print(`<span class="out-good">${sc.counterMeasure.briefing}</span>`);
       print(`<span class="out-dim">Rejoue les mêmes étapes pour voir ce qui a changé — et ce qui, malgré tout, ne change pas.</span>`);
-      if(typeof unlockDefenseTester === 'function') unlockDefenseTester();
+      if(typeof recordMitigationTested === 'function') recordMitigationTested(state.scenarioId);
     } else {
       print(`<span class="out-dim">ℹ️ Aucune contre-mesure définie pour ce scénario pour l'instant.</span>`);
     }
