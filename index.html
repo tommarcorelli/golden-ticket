@@ -143,6 +143,12 @@ Ticket obtenu. Prêt à cracker.</div>
       <p>Un compte de service legacy avec la pré-authentification Kerberos désactivée. Pas besoin de credentials : extrais son TGT directement, cracke le mot de passe, puis suis la chaîne ACL jusqu'au Domain Admin.</p>
       <button class="mode-play" onclick="goToLesson('asrep')">▶ Lancer</button>
     </div>
+    <div class="mode-card active-mode" id="mode-card-silverticket">
+      <span class="done-badge" id="badge-silverticket" style="display:none;">✓ Terminé</span>
+      <h4>🥈 Scénario 12 — Silver Ticket</h4>
+      <p>Tu es administrateur local d'un serveur de fichiers. Extrais le hash du compte machine, forge un TGS pour le service CIFS sans jamais contacter le contrôleur de domaine, et accède au partage confidentiel.</p>
+      <button class="mode-play" onclick="goToLesson('silverticket')">▶ Lancer</button>
+    </div>
   </div>
 
   <div class="epic-banner-wrap libre-wrap">
@@ -499,6 +505,7 @@ Ticket obtenu. Prêt à cracker.</div>
 <script src="js/scenarios/hybridbridge.js"></script>
 <script src="js/scenarios/gpo.js"></script>
 <script src="js/scenarios/asrep.js"></script>
+<script src="js/scenarios/silverticket.js"></script>
 <script src="js/domaingen.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/terminal.js"></script>

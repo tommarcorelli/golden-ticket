@@ -51,7 +51,7 @@ const librePaths = savedProgress.librePaths;
 const blueteamCases = savedProgress.blueteamCases;
 const quizPassed = pruneOrphanIds(savedProgress.quizPassed);
 const mitigationsTested = savedProgress.mitigationsTested || {};
-const QUIZ_SCENARIOS = ['kerberoast','pth','acl','azuread','adcs','shadowcred','dcsync','unconstrained','breakglass','gpo','goldenticket','hybridbridge','asrep'];
+const QUIZ_SCENARIOS = ['kerberoast','pth','acl','azuread','adcs','shadowcred','dcsync','unconstrained','breakglass','gpo','goldenticket','hybridbridge','asrep','silverticket'];
 
 function markScenarioComplete(scenarioId){
   completedScenarios[scenarioId] = true;
@@ -154,7 +154,7 @@ function unlockAchievements({ scenarioId, elapsed, hintsUsed, manCount, pathTake
 
 // Scénarios d'attaque qui ont une contre-mesure testable (tous sauf blueteam).
 const CM_SCENARIOS = ['kerberoast','pth','acl','azuread','adcs','shadowcred','dcsync',
-                      'unconstrained','breakglass','gpo','goldenticket','hybridbridge','libre','asrep'];
+                      'unconstrained','breakglass','gpo','goldenticket','hybridbridge','libre','asrep','silverticket'];
 
 // Enregistre qu'une contre-mesure a été testée pour ce scénario précis.
 // Débloque 'defense_tester' (premier test, global) et 'full_defender' (tous les scénarios).

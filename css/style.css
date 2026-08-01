@@ -333,6 +333,17 @@ input:focus-visible,
   border-radius:8px;padding:12px 14px;
   color:var(--text-md) !important;
 }
+.lesson-table{
+  width:100%;border-collapse:collapse;font-size:13px;margin:10px 0 14px;
+}
+.lesson-table th,.lesson-table td{
+  padding:7px 10px;border:1px solid rgba(255,255,255,0.1);text-align:left;vertical-align:top;
+}
+.lesson-table th{
+  background:rgba(242,183,5,0.1);color:var(--gold-li);font-weight:600;
+}
+.lesson-table td:first-child{color:var(--text-md);font-weight:500;}
+.lesson-table tr:hover td{background:rgba(255,255,255,0.03);}
 .slide-nav{
   display:flex;align-items:center;justify-content:space-between;
   margin-top:22px;

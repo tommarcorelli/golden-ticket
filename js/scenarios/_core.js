@@ -55,7 +55,11 @@ const NOISE = {
   gpoAbuse:       noiseRule(/^gpoabuse -gpo \S+ -type localadmin -target \S+$/, 24, "Modification de la sécurité d'un objet GPO (Event ID 5136) — un changement qui touche toute une OU d'un coup"),
   gpupdateForce:  noiseRule(/^gpupdate \/force \/target:\S+$/, 10, "Actualisation forcée de la stratégie de groupe sur un poste distant"),
   asrepFind:      noiseRule(/^get-domainuser -preauthdisabled$/, 4, 'Requête LDAP filtrée sur le flag DONT_REQ_PREAUTH (comptes sans pré-authentification Kerberos)'),
-  asreproast:     noiseRule(/^invoke-asreproast -identity \S+$/, 14, 'Demande de TGT sans pré-authentification (Event ID 4768 avec RC4, visible dans les logs du contrôleur de domaine)')
+  asreproast:     noiseRule(/^invoke-asreproast -identity \S+$/, 14, 'Demande de TGT sans pré-authentification (Event ID 4768 avec RC4, visible dans les logs du contrôleur de domaine)'),
+  lsaDump:        noiseRule(/^mimikatz lsadump::lsa \/patch$/, 18, 'Dump des secrets LSA en mémoire — détecté par tout EDR (CreateRemoteThread + accès lsass.exe)'),
+  getDomainSid:   noiseRule(/^get-domainsid$/, 2, 'Requête LDAP pour le SID du domaine — trace minimale'),
+  dirShare:       noiseRule(/^dir \\\\[^\s]+$/, 4, 'Enumération d\'un partage réseau distant — visible dans les logs du serveur de fichiers'),
+  silverForge:    noiseRule(/^mimikatz kerberos::silver /, 20, 'Injection d\'un Silver Ticket en mémoire (Event ID 4624 — Logon Type 3 sans 4768/4769 précédent : anomalie KDC détectable)')
 };
 
 // ---------------------------------------------------------
