@@ -226,6 +226,23 @@ SCENARIOS.libre = {
 
   initState(){ return { crackedPasswords:{}, knownPasswords:{}, dumpedHash:null }; },
 
+  // Le compte "compta" (k.morel par défaut, renommé par DomainGen) est un honeytoken :
+  // son ACL alléchante (GenericAll via le groupe Comptabilité) ne mène nulle part —
+  // c'est un leurre spécifiquement surveillé. La lister ou lire son ACL est anodin ;
+  // aller jusqu'à réinitialiser son mot de passe, c'est mordre à l'hameçon.
+  checkHoneytoken(lower){
+    const sc = SCENARIOS.libre;
+    const name = sc.comptaAccount.toLowerCase();
+    const re = new RegExp('^set-domainuserpassword -identity ' + name + ' -newpassword \\S+$');
+    if(re.test(lower)){
+      return {
+        label:`Réinitialisation du mot de passe d'un compte honeytoken (${sc.comptaAccount})`,
+        message:"💡 Ce compte n'avait en réalité aucun privilège exploitable — son ACL alléchante existe précisément pour attirer les curieux. En vrai environnement, ce genre de compte-leurre (honeytoken) est étroitement surveillé : la moindre action dessus alerte immédiatement l'équipe sécurité."
+      };
+    }
+    return null;
+  },
+
   handle(lower, cmd, m){
     const sc = SCENARIOS.libre;
 

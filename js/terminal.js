@@ -116,10 +116,40 @@ function addNoise(points, label){
   if(state.opsec.detected) return;
   state.opsec.level = Math.min(100, state.opsec.level + points);
   renderOpsecGauge();
+  // Défenseur vivant : au-delà d'un certain niveau de bruit, un scénario peut définir
+  // une réaction concrète du SOC (pas juste une jauge qui monte) — voir sc.opsecReaction.
+  // Se déclenche une seule fois par mission, avant la détection totale à 100%.
+  if(sc.opsecReaction && !state.opsec.reacted && !state.opsec.detected && state.opsec.level >= sc.opsecReaction.threshold){
+    state.opsec.reacted = true;
+    print(`<span class="out-honeytoken">🛰️ Réaction du SOC : ${sc.opsecReaction.message}</span>`);
+    if(typeof sc.opsecReaction.react === 'function') sc.opsecReaction.react();
+  }
   if(state.opsec.level >= 100){
     state.opsec.detected = true;
     print(`<span class="out-bad">🚨 Alerte : l'équipe sécurité (SOC) a été notifiée — trop d'actions bruyantes d'affilée (${escapeHtml(label)}). La mission continue, mais ta présence est désormais surveillée.</span>`);
   }
+}
+
+// ---------------------------------------------------------
+// Honeytokens (comptes-leurres surveillés) — système générique.
+// Un scénario peut définir sc.checkHoneytoken(lower, cmd) → { label, message } | null.
+// Contrairement à l'OPSEC (bruit cumulatif), un honeytoken déclenche une détection
+// INSTANTANÉE et certaine dès qu'on l'utilise vraiment (pas juste le lister/consulter) —
+// il représente un compte spécifiquement surveillé, pas une action bruyante parmi d'autres.
+// ---------------------------------------------------------
+function triggerHoneytoken(label, message){
+  if(state.honeytokenHit) return; // une seule alerte par mission, pas de spam
+  state.honeytokenHit = { label, t: Date.now() };
+  print(`<span class="out-honeytoken">🍯 Piège détecté : ${label}</span>`);
+  if(message) print(`<span class="out-dim">${message}</span>`);
+  const sc = currentScenario();
+  if(sc.opsecEnabled && state.opsec && !state.opsec.detected){
+    state.opsec.level = 100;
+    state.opsec.detected = true;
+    renderOpsecGauge();
+    print(`<span class="out-bad">🚨 Ce compte était surveillé : le SOC a été notifié instantanément, quel que soit ton niveau de bruit jusque-là.</span>`);
+  }
+  vibrate([30,30,30]);
 }
 
 function bootTerminal(scenarioId, opts){
@@ -137,7 +167,8 @@ function bootTerminal(scenarioId, opts){
   state.cmdBudget = sc.cmdBudget || null;
   state.cmdRemaining = state.cmdBudget;
   state.missionFailed = false;
-  state.opsec = { level:0, detected:false };
+  state.opsec = { level:0, detected:false, reacted:false };
+  state.honeytokenHit = null;
   cmdHistory = [];
   historyIndex = -1;
   missionStart = Date.now();
@@ -309,6 +340,10 @@ function handle(raw){
       if(rule.test(lower)) addNoise(rule.points, rule.label);
     });
   }
+  if(sc.checkHoneytoken){
+    const ht = sc.checkHoneytoken(lower, cmd);
+    if(ht) triggerHoneytoken(ht.label, ht.message);
+  }
   if(handledByScenario) return;
 
   // easter eggs génériques
@@ -459,6 +494,15 @@ function showMissionComplete(elapsed, cmds, hints, newAchievements){
       document.getElementById('mc-opsec').textContent = state.opsec.detected ? '🚨 Détecté' : '🥷 Furtif';
     } else {
       opsecStat.style.display = 'none';
+    }
+  }
+  const honeytokenStat = document.getElementById('mc-honeytoken-stat');
+  if(honeytokenStat){
+    if(state.honeytokenHit){
+      honeytokenStat.style.display = '';
+      document.getElementById('mc-honeytoken').textContent = '🍯 Piège mordu';
+    } else {
+      honeytokenStat.style.display = 'none';
     }
   }
   const certBtn = document.getElementById('mc-cert-btn');

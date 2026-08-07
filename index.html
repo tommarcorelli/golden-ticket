@@ -25,6 +25,8 @@
     <button class="back-link" id="theme-toggle" onclick="toggleLightMode()" title="Basculer thème clair/sombre" aria-pressed="false">🌙<span class="sr-only"> Thème clair/sombre</span></button>
     <button class="back-link" id="sound-toggle" onclick="toggleSoundFx()" title="Activer/désactiver les effets sonores" aria-pressed="true">🔊<span class="sr-only"> Effets sonores</span></button>
     <button class="back-link" onclick="showLeaderboard()">🏆 Classement</button>
+    <button class="back-link" onclick="showCampaignView()">🎖️ Campagne</button>
+    <button class="back-link" onclick="showMitreMatrix()">🗺️ MITRE</button>
     <button class="back-link" onclick="showView('view-glossary')">📖 Glossaire</button>
     <div class="domain-pill" aria-hidden="true">CORP.LOCAL</div>
   </nav>
@@ -341,6 +343,30 @@ Ticket obtenu. Prêt à cracker.</div>
   </div>
 </section>
 
+<!-- ============ MATRICE MITRE ATT&CK ============ -->
+<section id="view-mitre" class="view" tabindex="-1" aria-label="Matrice MITRE ATT&CK">
+  <div class="lesson-shell" style="max-width:780px;">
+    <div class="game-header">
+      <button class="back-link" onclick="backHome()">← Retour</button>
+      <div class="scenario-tag">🗺️ MATRICE MITRE ATT&CK</div>
+    </div>
+    <p class="lb-intro" id="mitre-summary"></p>
+    <ul class="glossary-grid" id="mitre-grid" style="list-style:none;margin:0;padding:0;"></ul>
+  </div>
+</section>
+
+<!-- ============ CAMPAGNE GUIDÉE ============ -->
+<section id="view-campaign" class="view" tabindex="-1" aria-label="Campagne guidée">
+  <div class="lesson-shell" style="max-width:680px;">
+    <div class="game-header">
+      <button class="back-link" onclick="backHome()">← Retour</button>
+      <div class="scenario-tag">🎖️ CAMPAGNE GUIDÉE</div>
+    </div>
+    <p class="lb-intro">Un engagement red team complet, mission après mission, avec un fil narratif. Chaque étape se débloque une fois la précédente terminée — pas de sauvegarde séparée, ta progression habituelle suffit.</p>
+    <div id="campaign-track" class="campaign-track"></div>
+  </div>
+</section>
+
 <!-- ============ CLASSEMENT ============ -->
 <section id="view-leaderboard" class="view" tabindex="-1" aria-label="Classement">
   <div class="lesson-shell" style="max-width:640px;">
@@ -446,6 +472,7 @@ Ticket obtenu. Prêt à cracker.</div>
           <div class="mc-stat"><span id="mc-cmds">0</span><label>Commandes</label></div>
           <div class="mc-stat"><span id="mc-hints">0</span><label>Indices</label></div>
           <div class="mc-stat" id="mc-opsec-stat" style="display:none;"><span id="mc-opsec">🥷 Furtif</span><label>OPSEC</label></div>
+          <div class="mc-stat" id="mc-honeytoken-stat" style="display:none;"><span id="mc-honeytoken">🍯 Piège mordu</span><label>Leurre</label></div>
         </div>
 
         <div class="mc-actions">
@@ -516,6 +543,8 @@ Ticket obtenu. Prêt à cracker.</div>
 <script src="js/home.js"></script>
 <script src="js/certificate.js"></script>
 <script src="js/quiz.js"></script>
+<script src="js/mitre.js"></script>
+<script src="js/campaign.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

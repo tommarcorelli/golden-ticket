@@ -159,6 +159,19 @@ SCENARIOS.azuread = {
 
   initState(){ return { grantedSecret:null }; },
 
+  // 'portal-frontend' est un honeytoken : une application volontairement plantée sans
+  // rôle privilégié, pour attirer un attaquant qui ajoute des identifiants un peu partout
+  // sans vérifier d'abord les rôles réellement attribués (voir get-mgapp).
+  checkHoneytoken(lower){
+    if(/^add-credential -target portal-frontend$/i.test(lower)){
+      return {
+        label:'Ajout d\'un identifiant à une application-leurre (portal-frontend)',
+        message:"💡 Cette application n'a jamais eu de rôle d'annuaire privilégié — c'est un honeytoken planté par l'équipe sécurité. Vérifier les rôles réellement attribués (get-mgrolemembers) avant d'agir évite ce genre de piège."
+      };
+    }
+    return null;
+  },
+
   handle(lower, cmd, m){
     const sc = SCENARIOS.azuread;
 

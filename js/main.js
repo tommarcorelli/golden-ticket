@@ -10,7 +10,9 @@ function showView(id){
     'view-game': '🎫 Mission en cours — Golden Ticket',
     'view-glossary': '📖 Glossaire — Golden Ticket',
     'view-explain': '🛡️ Analyse — Golden Ticket',
-    'view-leaderboard': '🏆 Classement — Golden Ticket'
+    'view-leaderboard': '🏆 Classement — Golden Ticket',
+    'view-mitre': '🗺️ Matrice MITRE — Golden Ticket',
+    'view-campaign': '🎖️ Campagne — Golden Ticket'
   };
   document.title = titles[id] || 'Golden Ticket';
 }

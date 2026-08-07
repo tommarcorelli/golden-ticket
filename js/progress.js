@@ -102,6 +102,7 @@ const ACHIEVEMENTS = [
   { id:'budget_survivor', icon:'🎯', title:'Sous contrainte', desc:"Terminer une mission en Mode Budget, sans dépasser le nombre de commandes autorisé" },
   { id:'defense_tester',  icon:'🛡️', title:'Œil du défenseur',   desc:"Tester une contre-mesure après avoir résolu un scénario, pour voir la défense à l'œuvre" },
   { id:'full_defender',   icon:'🏰', title:'Forteresse',          desc:"Tester les contre-mesures des 13 scénarios d'attaque — voir chaque défense bloquer l'attaque correspondante" },
+  { id:'campaign_finisher',icon:'🎖️', title:'Chef de campagne',   desc:"Terminer les 5 étapes de la Campagne guidée, dans l'ordre" },
 ];
 
 function recordQuizPass(scenarioId){
@@ -147,6 +148,8 @@ function unlockAchievements({ scenarioId, elapsed, hintsUsed, manCount, pathTake
 
   const allIds = Object.keys(SCENARIOS);
   if(allIds.every(id => completedScenarios[id])) unlock('domain_master');
+
+  if(typeof checkCampaignAchievements === 'function') checkCampaignAchievements(unlock);
 
   saveProgress();
   return newlyUnlocked;

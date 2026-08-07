@@ -121,6 +121,16 @@ SCENARIOS.kerberoast = {
     ]
   },
 
+  // Défenseur vivant : dès que le bruit cumulé atteint ce seuil (typiquement juste après
+  // la demande de ticket, l'action la plus bruyante de la chaîne), le SOC simulé réagit
+  // pour de vrai — pas juste une jauge qui monte. Ici la réaction est réaliste ET ne casse
+  // pas la mission : le ticket déjà obtenu reste chiffré avec l'ANCIEN mot de passe, donc
+  // toujours cassable. C'est justement la leçon : une rotation après coup arrive trop tard.
+  opsecReaction:{
+    threshold:20,
+    message:"un volume anormal de requêtes LDAP/Kerberos sur svc_backup déclenche une rotation automatique de son mot de passe. Mais le ticket que tu as déjà en main reste chiffré avec l'ANCIEN mot de passe : une fois obtenu, il n'y a plus de fenêtre à rater — trop tard pour cette réaction-là."
+  },
+
   counterMeasure:{
     label:'Comptes de service gérés (gMSA)',
     briefing:"🛡️ Contre-mesure appliquée : SVC-BACKUP a été migré vers un compte de service géré (gMSA). Son mot de passe fait désormais 240 caractères aléatoires et tourne automatiquement toutes les 30 heures."

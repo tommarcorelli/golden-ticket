@@ -801,6 +801,39 @@ input:focus-visible,
 }
 @keyframes replayPulse{0%,100%{opacity:1;}50%{opacity:.55;}}
 
+/* ---------- mode campagne ---------- */
+.campaign-track{display:flex;flex-direction:column;gap:26px;}
+.campaign-block{border:1px solid var(--glass-border);border-radius:var(--radius-lg);background:var(--glass);backdrop-filter:blur(12px);padding:20px;}
+.campaign-head{display:flex;gap:14px;align-items:flex-start;margin-bottom:18px;}
+.campaign-icon{font-size:26px;line-height:1;}
+.campaign-head h3{font-family:var(--font-display);font-size:15.5px;color:var(--text);margin-bottom:6px;}
+.cs-finished-tag{font-size:11px;color:var(--gold-li);font-weight:700;}
+.campaign-intro{font-size:12.5px;color:var(--text-md);line-height:1.55;margin-bottom:6px;}
+.campaign-progress{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);}
+.campaign-step{display:flex;gap:12px;align-items:flex-start;}
+.cs-marker{
+  flex:0 0 auto;width:26px;height:26px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;border:1px solid var(--glass-border);color:var(--text-dim);
+  background:var(--bg1);
+}
+.campaign-step.done .cs-marker{border-color:var(--gold);color:var(--gold-li);background:rgba(242,183,5,0.12);}
+.campaign-step.unlocked .cs-marker{border-color:var(--gold-li);color:var(--gold-li);}
+.campaign-step.locked{opacity:0.5;}
+.cs-body{flex:1;padding-bottom:2px;}
+.cs-head{display:flex;align-items:baseline;gap:8px;margin-bottom:3px;}
+.cs-day{font-family:var(--font-mono);font-size:10.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;}
+.cs-head h4{font-family:var(--font-display);font-size:13px;color:var(--text);}
+.cs-brief{font-size:12px;color:var(--text-md);line-height:1.55;margin-bottom:8px;}
+.cs-locked-tag{font-size:11px;color:var(--text-dim);font-style:italic;}
+.cs-connector{width:1px;height:16px;background:var(--glass-border);margin-left:13px;}
+
+/* ---------- matrice mitre ---------- */
+.mitre-card .mitre-chip{margin-bottom:2px;}
+
+/* ---------- honeytoken ---------- */
+.out-honeytoken{color:#ffb020;font-weight:700;}
+
 .lb-tabs{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
 .lb-tab{
   font-family:var(--font-mono);font-size:11.5px;color:var(--text-dim);

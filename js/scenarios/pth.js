@@ -97,6 +97,15 @@ SCENARIOS.pth = {
     ]
   },
 
+  // Défenseur vivant : l'accès à LSASS (dump mimikatz) est l'action la plus bruyante de la
+  // chaîne — un EDR réel la détecte quasi systématiquement. La réaction reste narrative :
+  // le hash est déjà extrait au moment où l'alerte remonte, donc rien à rejouer — mais elle
+  // pose clairement la question que la contre-mesure LAPS répondra ensuite.
+  opsecReaction:{
+    threshold:25,
+    message:"un EDR détecte l'accès mémoire à LSASS. Trop tard : le hash est déjà extrait. La vraie question n'est pas de bloquer ce dump-ci, mais d'empêcher qu'un hash volé une fois ouvre TOUTES les machines — c'est précisément ce que corrige LAPS."
+  },
+
   counterMeasure:{
     label:'LAPS (mots de passe admin locaux uniques)',
     briefing:"🛡️ Contre-mesure appliquée : LAPS est désormais déployé sur le parc. Chaque machine a son propre mot de passe administrateur local, unique et tourné automatiquement — un hash volé sur une machine ne marche plus sur les autres."
